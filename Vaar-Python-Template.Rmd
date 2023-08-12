@@ -1,0 +1,663 @@
+---
+title: "Vaar Python Notebook Template"
+author: "Amanda Harris"
+output: html_notebook
+params:
+  printcode: true
+---
+
+This Vaar Template [R Markdown](http://rmarkdown.rstudio.com) Notebook using Python aims to return:  
+-  Whether data is more likely to be MCAR or MAR/MNAR  
+-  A recommended approach for managing missing data that considers stability of model results  
+-  Evaluation of imputation efforts based on data model experiment results  
+
+Work through the steps outlined with your own data, setting key variable values as you work through the notebook, and adding further code blocks if required. Comment out any code not required for your data - such as renaming variables. Or copy and paste code into your own environment.
+
+An R version exists also, and it is recommended that this is used over the Python version where possible, as the naniar and mice packages in R are very effective.
+
+# Step 1: Read in data and show data summary  
+
+```{r}
+library(reticulate)
+py_install("pandas")
+```
+
+
+```{python}
+import pandas as pd
+
+df = pd.read_csv('file or url', sep=',', header=None, na_values='?')
+print(df)
+
+```
+```{r}
+py_install("numpy")
+```
+Print summary statistics for dataframe.
+```{python}
+import numpy as np
+print(df.describe())
+```
+Count number of observations in each class if classification problem.
+```{python}
+diagnosis = df.groupby(10)
+diagnosis.count()
+```
+
+
+# Step 2: Tidy Data
+```{python}
+#rename variables to something more meaningful in copy of original df
+dfcp = df
+cols = df.columns
+df.rename(columns = {cols[0]:'new1',cols[1]:'new2',cols[2]:'new3', cols[3]:'new4',cols[4]:'new5',cols[5]:'new6',cols[6]:'new7', cols[7]:'new8', cols[8]:'new9', cols[9]:'new10', cols[10]:'new11'}, inplace=True)
+
+```
+
+Get the type for variables in the dataframe.
+```{python}
+  dfcp.dtypes
+```
+Check for and remove any duplicate observations if there is a unique identifier. Comment out if no identifier.
+```{python}
+duplicates = dfcp.duplicated(keep='first')
+print('Duplicates:')
+print(duplicates)
+print('\n')
+print('DataFrame after keeping only the first instance of the duplicate rows:')
+dfcp[~duplicates]
+```
+Remove unique identifier from dataframe as this will not add any value to model.
+```{python}
+dfcp = dfcp.drop(columns=['idVar'])
+```
+# Step 3: Visualise Missing Data and Run MCAR Test
+Count missing values in each column. 
+```{python}
+dfcp.isna().sum()
+missingness = (dfcp.isna().sum())/(len(dfcp))
+```
+Use seaborn module to visualise missing data.
+
+```{r}
+py_install("seaborn")
+```
+```{python}
+import seaborn as sns
+```
+Install matplotlib module also.
+```{r}
+py_install("matplotlib==3.6")
+```
+Import matplotlib.
+```{python}
+import matplotlib.pyplot as plt
+```
+Visualise missing data patterns in matrix.
+
+```{python}
+plt.figure(figsize=(10,6))
+sns.heatmap(dfcp.isna().transpose(), cmap="Blues", cbar_kws={'label': 'Missing Data'})
+plt.show()
+```
+
+Run MCAR Test.
+```{r}
+py_install("scipy")
+```
+```{r}
+py_install("r-naniar")
+```
+The following code, including Little's MCAR Test, has been performed in R, as no equivalent exists in Python yet (August 2023).
+**There will be a warning with MCAR test if non-numeric columns are present. If p-value >0.05 likely to be MCAR as not statistically significant.**  
+The MCAR Test may error if data is singular, there is no fix available for this yet (August 2023).
+```{R}
+library(naniar)
+mcar_test(py$dfcp)
+```
+# Step 4: Look at Outputs from Visualising the Missing Data and Answer the Following Questions
+
+#### What is the p.value returned by the MCAR Test?
+If the statistic is high and the p.value <0.05 it is likely to be MNAR or MAR and cannot be ignored. A p-value >0.05 indicates MCAR but other information will be considered also. The value is set as a variable in the following code.
+
+```{python}
+#set MCAR Test p.value as variable
+mcar_presult = 
+
+if mcar_presult=="error" or  isinstance(mcar_presult, (int, float, complex)):
+  print(f"{mcar_presult} is MCAR Test p.value variable value.")
+else:
+  print("Please enter either a number or 'error' as the mcar_presult variable value.")
+    
+```
+
+#### Is data more likely to be missing in some variables?
+If so, this indicates that the data could be missing at random (MAR) or missing not at random (MNAR) and can therefore not be ignored. Yes or No is set as a variable in the following code.
+```{python}
+#set likelihood variable
+likelihood = "Yes or No"
+
+if likelihood=="Yes" or  likelihood=="No":
+  print(f"{likelihood} is likelihood variable value.")
+else:
+  print("Please enter either 'Yes' or 'No' as the likelihood variable value.")
+```
+
+#### Is data missing from the dependent variable only?
+If so, this suggests that complete case analysis may be the best option. However, other factors need to be considered also. Yes or No is set as variable in the following code.
+```{python}
+#set dependent missingness variable
+dependent_only = "Yes or No"
+
+if dependent_only=="Yes" or  dependent_only=="No":
+  print(f"{dependent_only} is dependent_only variable value.")
+else:
+  print("Please enter either 'Yes' or 'No' as the dependent_only variable value.")
+  
+```
+
+#### What percentage of data is missing?
+If it's between 10-50% multiple imputation is likely to result in a more effective, unbiased model. The value is set as a variable in the following code.
+```{python}
+#print missingness variable value
+print(missingness)
+```
+
+It's good practice to test different approaches and the Vaar Notebooks will consider these, as well as the variable values just set in recommendations.
+
+
+## Visualise Correlation
+Visualise correlation for numerical variables.
+```{python}
+n=5 #number of columns
+names = ['V1','V2','V3','V4','V5'] #col names
+fig = plt.matshow(dfcp.corr(),)
+ax = plt.gca()
+
+ax.set_xticks(np.arange(n))
+ax.set_xticklabels(names)
+ax.set_yticks(np.arange(n))
+ax.set_yticklabels(names)
+
+plt.setp([tick.label2 for tick in ax.xaxis.get_major_ticks()], rotation=40,
+         ha="left", va="center",rotation_mode="anchor")
+
+plt.show()
+
+```
+
+Use Seaborn's PairGrid to visualise interactions between variables.
+
+```{python}
+#use seaborn's PairGrid to visualise interactions between variables.
+pairs = sns.PairGrid(dfcp, hue="targetV")
+pairs.map_diag(sns.histplot)
+pairs.map_offdiag(sns.scatterplot)
+pairs.add_legend()
+plt.show()
+```
+
+
+## Calculate Skew
+Install and import scipy.
+```{r}
+py_install("scipy")
+```
+```{python}
+import scipy as sci
+from scipy.stats import skew
+```
+
+Calculate and print skewness. For variables with missing data 'nan' will be returned. 
+
+
+```{python}
+print(skew(dfcp, axis = 0, bias=True))
+```
+
+# Step 5: which variables and values are important for predicting proportion of missingness?
+Naniar (R) used for prop_miss functions, to add to dataframe temporarily for use in simple decision tree.
+```{r}
+library(rpart)
+library(rpart.plot)
+```
+
+
+```{r}
+py$dfcp %>%
+  add_prop_miss() %>%
+  rpart(prop_miss_all ~ ., data=.) %>%
+  prp(type=4, extra = 101, roundint=FALSE, prefix="Prop.Miss = ")
+```
+
+#### Which numerical variable with missing data is nearest the top of the tree?
+Set variable value for missingness influencer in code below.
+
+```{python}
+#set value for missingness influencer
+miss_influencer="V5"
+```
+
+# Step 6: Create Complete Case and Iterative Imputation Datasets
+Create complete dataset by deleting records with missing values and run iterative chained equations which return single imputation instead of multiple.
+```{python}
+#Create CCA data
+dfcp_cca = dfcp.copy()
+dfcp_cca = dfcp_cca.dropna()
+```
+
+```{python}
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+dfcp_mi = IterativeImputer(random_state=0, max_iter=5).fit_transform(dfcp)
+
+```
+Check that there is no missing data in new datasets.
+```{python}
+#convert array to dataframe
+dfcp_mi = pd.DataFrame(dfcp_mi)
+print(dfcp_cca.isna().sum())
+print(dfcp_mi.isna().sum())
+```
+Add column names to imputed dataframe.
+
+```{python}
+dfcp_imp = dfcp_mi
+cols = dfcp_imp.columns
+dfcp_imp.rename(columns = {cols[0]:'V1',cols[1]:'V2', cols[2]:'V3',cols[3]:'V4',cols[4]:'V5'}, inplace=True)
+```
+
+# Step 7: Conduct MNAR Sensitivity Test
+
+Use the variable with missing data which has the most influence on proportion of missingness, according to step 5 and look at the range of values in this variable. Generate imputations under delta adjustment to imitate deviations from MAR (Gink and Van Buuren, no date). The code uses 0 and a reasonable range based on the variable range as the delta values.
+```{python}
+#Pull out index of NaN from original data
+df[df['BareNuclei'].isna()]
+```
+```{python}
+#subset these rows and variable identified from imputed data set
+delta0 = dfcp_mi.iloc[[23,40,139,145,158,164,235,249,275,292,294,297,315,321,411,617],[5]] #as example to change
+```
+
+
+
+```{python}
+#set delta values then set upper clip
+#create new values by delta increase
+delta=[0,1,2,3,4]
+delta1 = delta0.copy()
+delta1.loc[delta1['V4']<10, 'V4']+=1
+
+```
+
+Repeat for other delta values
+```{python}
+delta2 = delta1.copy()
+delta2.loc[delta2['V4']<10, 'V4']+=1
+delta2.clip(upper=10)
+
+delta3 = delta2.copy()
+delta3.loc[delta3['V4']<10, 'V4']+=1
+delta3 = delta3.clip(upper=10)
+
+delta4 = delta3.copy()
+delta4.loc[delta4['V4']<10, 'V4']+=1
+delta4 = delta4.clip(upper=10)
+```
+Replace NaN with increased values to test sensitivity. Example below to change based on outputs created above.
+
+```{python}
+dfcp_mi_d1 = dfcp.copy()
+dfcp_mi_d1.iloc[[23],[5]] = 8.116345
+dfcp_mi_d1.iloc[[40],[5]] = 4.627595
+dfcp_mi_d1.iloc[[139],[5]] = 2.186619
+dfcp_mi_d1.iloc[[145],[5]] = 2.588273
+dfcp_mi_d1.iloc[[158],[5]] = 2.262360
+dfcp_mi_d1.iloc[[164],[5]] = 2.479783
+dfcp_mi_d1.iloc[[235],[5]] = 2.992673
+dfcp_mi_d1.iloc[[249],[5]] = 2.423504
+dfcp_mi_d1.iloc[[275],[5]] = 2.644552
+dfcp_mi_d1.iloc[[292],[5]] = 7.325052
+dfcp_mi_d1.iloc[[294],[5]] = 2.208827
+dfcp_mi_d1.iloc[[297],[5]] = 2.068113
+dfcp_mi_d1.iloc[[315],[5]] = 3.168468
+dfcp_mi_d1.iloc[[321],[5]] = 2.423504
+dfcp_mi_d1.iloc[[411],[5]] = 2.186619
+dfcp_mi_d1.iloc[[617],[5]] = 2.028221
+```
+ Repeat for other delta values.
+```{python}
+dfcp_mi_d2 = dfcp_mi_d1.copy()
+dfcp_mi_d2.iloc[[23],[5]] = 9.116345
+dfcp_mi_d2.iloc[[40],[5]] = 5.627595
+dfcp_mi_d2.iloc[[139],[5]] = 3.186619
+dfcp_mi_d2.iloc[[145],[5]] = 3.588273
+dfcp_mi_d2.iloc[[158],[5]] = 3.262360
+dfcp_mi_d2.iloc[[164],[5]] = 3.479783
+dfcp_mi_d2.iloc[[235],[5]] = 3.992673
+dfcp_mi_d2.iloc[[249],[5]] = 3.423504
+dfcp_mi_d2.iloc[[275],[5]] = 3.644552
+dfcp_mi_d2.iloc[[292],[5]] = 8.325052
+dfcp_mi_d2.iloc[[294],[5]] = 3.208827
+dfcp_mi_d2.iloc[[297],[5]] = 3.068113
+dfcp_mi_d2.iloc[[315],[5]] = 4.168468
+dfcp_mi_d2.iloc[[321],[5]] = 3.423504
+dfcp_mi_d2.iloc[[411],[5]] = 3.186619
+dfcp_mi_d2.iloc[[617],[5]] = 3.028221
+```
+ 
+```{python}
+dfcp_mi_d3 = dfcp_mi_d2.copy()
+dfcp_mi_d3.iloc[[23],[5]] = 10
+dfcp_mi_d3.iloc[[40],[5]] = 6.627595
+dfcp_mi_d3.iloc[[139],[5]] = 4.186619
+dfcp_mi_d3.iloc[[145],[5]] = 4.588273
+dfcp_mi_d3.iloc[[158],[5]] = 4.262360
+dfcp_mi_d3.iloc[[164],[5]] = 4.479783
+dfcp_mi_d3.iloc[[235],[5]] = 4.992673
+dfcp_mi_d3.iloc[[249],[5]] = 4.423504
+dfcp_mi_d3.iloc[[275],[5]] = 4.644552
+dfcp_mi_d3.iloc[[292],[5]] = 9.325052
+dfcp_mi_d3.iloc[[294],[5]] = 4.208827
+dfcp_mi_d3.iloc[[297],[5]] = 4.068113
+dfcp_mi_d3.iloc[[315],[5]] = 5.168468
+dfcp_mi_d3.iloc[[321],[5]] = 4.423504
+dfcp_mi_d3.iloc[[411],[5]] = 4.186619
+dfcp_mi_d3.iloc[[617],[5]] = 4.028221
+```
+
+```{python}
+dfcp_mi_d4 = dfcp_mi_d3.copy()
+dfcp_mi_d4.iloc[[23],[5]] = 10
+dfcp_mi_d4.iloc[[40],[5]] = 7.627595
+dfcp_mi_d4.iloc[[139],[5]] = 5.186619
+dfcp_mi_d4.iloc[[145],[5]] = 5.588273
+dfcp_mi_d4.iloc[[158],[5]] = 5.262360
+dfcp_mi_d4.iloc[[164],[5]] = 5.479783
+dfcp_mi_d4.iloc[[235],[5]] = 5.992673
+dfcp_mi_d4.iloc[[249],[5]] = 5.423504
+dfcp_mi_d4.iloc[[275],[5]] = 5.644552
+dfcp_mi_d4.iloc[[292],[5]] = 10
+dfcp_mi_d4.iloc[[294],[5]] = 5.208827
+dfcp_mi_d4.iloc[[297],[5]] = 5.068113
+dfcp_mi_d4.iloc[[315],[5]] = 6.168468
+dfcp_mi_d4.iloc[[321],[5]] = 5.423504
+dfcp_mi_d4.iloc[[411],[5]] = 5.186619
+dfcp_mi_d4.iloc[[617],[5]] = 5.028221
+```
+
+
+## Optional Step: Remove Outliers
+There can be valuable information in outliers and it is good practice to remove obvious errors only - such as impossible values for particular variables. Outliers could be an accurate representation of the natural variability in data and reflective of diagnostic challenge.
+
+
+# Step 8: Select Features
+This code is an example of how to determine which variables have above 0.9 correlation, as highly-correlated features do not generally improve models. Then, remove any variables identified from all datasets.
+```{python}
+#select highly correlated features
+#remove target variables from consideration
+dfcp_mi_cor = dfcp_mi.copy()
+dfcp_mi_cor = dfcp_mi_cor.drop(columns=['targetV'])
+cor = dfcp_mi_cor.corr()
+print(cor)
+```
+
+Remove from datasets if over 0.9.
+
+```{python}
+dfcp_mi = dfcp_mi.drop(columns=['V5'])
+dfcp_mi_d1 = dfcp_mi_d1.drop(columns=['V5'])
+dfcp_mi_d2 = dfcp_mi_d2.drop(columns=['V5'])
+dfcp_mi_d3 = dfcp_mi_d3.drop(columns=['V5'])
+dfcp_mi_d4 = dfcp_mi_d4.drop(columns=['V5'])
+dfcp_cca = dfcp_cca.drop(columns=['V5'])
+
+```
+
+## Optional step: Transform data
+Scaling data allows models to compare relative relationships between data points more effectively. Some datasets will already be scaled.
+
+Log transformation can be helpful for linear models for example. 
+```{python}
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler()
+dfcp_mi = scaler.fit_transform(dfcp_mi)
+dfcp_cca = scaler.fit_transform(dfcp_cca)
+dfcp_mi_d4 = scaler.fit_transform(dfcp_mi_d4)
+```
+
+# Step 9: Build and Test Models
+This notebook uses a Random Forest model as an example. 
+
+## Create Training and Test Sets
+Using train-test split procedure from Scikit-Learn, creating x and y values for each dataset first.
+```{python}
+#for imputed dataset
+#change class to factor also if required
+from sklearn.model_selection import train_test_split
+x = dfcp_mi.drop(columns=['target_v'])
+y = dfcp_mi['target_v'].astype('category') #if categorical
+np.random.seed(3) #for reproducibility
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
+```
+Repeat for other datasets that will be used to train and test models.
+```{python}
+#cca 
+xcca = dfcp_cca.drop(columns=['target_v'])
+ycca = dfcp_cca['target_v'].astype('category')
+np.random.seed(3) #for reproducibility
+xcca_train, xcca_test, ycca_train, ycca_test = train_test_split(xcca, ycca, test_size=0.3)
+
+#delta4
+xd4 = dfcp_mi_d4.drop(columns=['target_v'])
+yd4 = dfcp_mi_d4['target_v'].astype('category')
+np.random.seed(3) #for reproducibility
+xd4_train, xd4_test, yd4_train, yd4_test = train_test_split(xd4, yd4, test_size=0.3)
+```
+
+## Predict Against Test Data
+Start with baseline model using iterative imputation. 
+```{python}
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix
+# random forest model creation
+rfc = RandomForestClassifier()
+rfc.fit(x_train,y_train)
+
+# predictions against test
+np.random.seed(3)
+predictions = rfc.predict(x_test)
+
+#evaluate using confusion matrix
+tn, fp, fn, tp = confusion_matrix(y_test, predictions).ravel()
+
+```
+```{python}
+sens_imp = tp/(tp+fn)
+spec_imp = tn/(fp+tn)
+acc_imp = (tp+tn)/(tp+tn+fp+fn)
+miss_preds = fp+fn
+print(f'Sensitivity for imputed model is {sens_imp}.')
+print(f'Specificity for imputed model is {spec_imp}.')
+print(f'Accuracy for imputed model is {acc_imp}.')
+print(f'The imputed model missclassified {miss_preds} observations in test.')
+```
+Repeat model tests with CCA data.
+```{python}
+#define model
+rfc1 = RandomForestClassifier()
+rfc1.fit(xcca_train,ycca_train)
+
+# predictions against test
+np.random.seed(3)
+predictions_cca = rfc1.predict(xcca_test)
+
+#evaluate using confusion matrix
+tn1, fp1, fn1, tp1 = confusion_matrix(ycca_test, predictions_cca).ravel()
+
+#Optional calculations for classification models
+sens_cca = tp1/(tp1+fn1)
+spec_cca = tn1/(fp1+tn1)
+acc_cca = (tp1+tn1)/(tp1+tn1+fp1+fn1)
+miss_cca = fp1+fn1
+print(f'Sensitivity for CCA model is {sens_cca}.')
+print(f'Specificity for CCA model is {spec_cca}.')
+print(f'Accuracy for CCA model is {acc_cca}.')
+print(f'The CCA model missclassified {miss_cca} observations in test.')
+```
+### Which Model Produced the Best Results?
+The following code block captures the model which produced the best results, based on core metric (Sensitivity) as this is a minority classification problem.
+```{python}
+# set model variable for best performance as MI or CCA
+better_model = 'CCA or MI'
+
+if better_model=="CCA" or  better_model=="MI":
+  print(f"{better_model} is the better model based on this data experiment.")
+else:
+  print("Please enter either 'MI' or 'CCA' for this variable.")
+```
+
+### Does Highest Delta Adjustment Have Big Impact on Results?
+```{python}
+#define and fit model
+rfc4 = RandomForestClassifier()
+rfc4.fit(xd4_train,yd4_train)
+
+#predict against test
+np.random.seed(3)
+predictions_d4 = rfc4.predict(xd4_test)
+
+#evaluate using confusion matrix
+tn4, fp4, fn4, tp4 = confusion_matrix(yd4_test, predictions_d4).ravel()
+
+sens_d4 = tp4/(tp4+fn4) #tpr
+spec_d4 = tn4/(fp4+tn4)
+acc_d4 = (tp4+tn4)/(tp4+tn4+fp4+fn4)
+miss_d4 = fp4+fn4
+print(f'Sensitivity for delta 4 model is {sens_d4}.')
+print(f'Specificity for delta 4 model is {spec_d4}.')
+print(f'Accuracy for delta 4 model is {acc_d4}.')
+print(f'The delta 4 model missclassified {miss_d4} observations in test.')
+```
+
+The impact result is captured as a Yes or No response in the code below.
+```{python}
+delta_impact = 'Yes or No'
+
+if delta_impact=="Yes" or  delta_impact=="No":
+  print(f"{delta_impact} is the value for the delta_impact variable.")
+else:
+  print("Please enter either 'Yes' or 'No' for this variable.")
+```
+
+# Summary and Recommendations
+The following code will print a summary, based on the variable information recorded in earlier code blocks. 
+
+### Is data MCAR or MAR/MNAR?
+Print of variable values set also.
+
+```{python}
+print(f"Missing data level is: {missingness}.\n")
+print(f"Data is more likely to be missing in some variables than others: {likelihood}.\n")
+print(f"Little's MCAR Test p value result is: {mcar_presult}. \n")
+print(f"Data is missing from the dependent variable only: {dependent_only}. \n")
+```
+```{python}
+if likelihood=="No" and mcar_presult=="error":
+  hypothesis="Missing data pattern provides some support for MCAR hypothesis. However, no result available for MCAR Test."
+elif likelihood=="No" and mcar_presult<0.05:
+  hypothesis="Hypothesis unproven. MCAR Test and missing data pattern indicate different missing data mechanisms."
+elif likelihood=="No" and mcar_presult>=0.05:
+  hypothesis="MCAR hypothesis supported by MCAR Test and missing data pattern."
+elif likelihood=="Yes" and mcar_presult=="error":
+  hypothesis="Missing data pattern provides some support for MAR/MNAR hypothesis. However, no result available for MCAR Test."
+elif likelihood=="Yes" and mcar_presult<0.05:
+  hypothesis="MAR/MNAR hypothesis supported by MCAR Test and missing data pattern."
+elif likelihood=="Yes" and mcar_presult>=0.05:
+  hypothesis="Hypothesis unproven. MCAR Test and missing data pattern indicate different missing data mechanisms."
+else:
+  hypothesis="No hypothesis found."
+
+print(hypothesis)
+```
+
+
+
+### Recommended Approach for Missing Data
+```{python}
+
+#define conditional statements
+if missingness>=0.5:
+  approach="Due to overall level of missing data (or level of missing data from dependent variable only) there is a risk that a poor model will be returned, regardless of method used, that would not generalise well on new data."
+
+elif missingness>0.1 and dependent_only=='Yes':
+  approach="Due to overall level of missing data (or level of missing data from dependent variable only) there is a risk that a poor model will be returned, regardless of method used, that would not generalise well on new data."
+
+elif hypothesis=="MCAR hypothesis supported by MCAR Test and missing data pattern." and missingness<=0.1:
+  approach="As MCAR hypothesis is supported and missing data is less than 10%, complete case analysis is likely to produce unbiased results. However, multiple imputation may produce a more effective model in some circumstances."
+
+elif hypothesis=="MCAR hypothesis supported by MCAR Test and missing data pattern." and missingness>0.1 and missingness<0.5:
+  approach="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model."
+
+elif hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern." and missingness<=0.1 and dependent_only=="Yes":
+  approach="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 10% and missing from the dependent variable only, complete case analysis may be the more reliable approach."
+
+elif hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern." and missingness<=0.5 and delta_impact=="No":
+  approach="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. Also, as missing data is less than 50% and the delta sensitivity analysis suggests the results are relatively stable, multiple imputation is the recommended approach."
+
+elif hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern." and delta_impact=="Yes":
+  approach="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. The delta sensitivity analysis suggests the results are not stable and indicative of MNAR data. Therefore, a pattern mixture model is recommended for further consideration. There are a couple of R mice package functions worth exploring further for this: mice.impute.ri and mice.impute.mnar.logreg (van Buuren et al., 2023)."
+
+else:
+  approach="No approach found."
+
+print(approach)
+```
+
+### Consideration of Test Model Results in Data Experiment
+```{python}
+if better_model=="MI" and approach=="Due to overall level of missing data (or level of missing data from dependent variable only) there is a risk that a poor model will be returned, regardless of method used, that would not generalise well on new data.":
+  print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, there is a risk that it would not generalise well on new data.")
+
+elif better_model=="CCA" and approach=="Due to overall level of missing data (or level of missing data from dependent variable only) there is a risk that a poor model will be returned, regardless of method used, that would not generalise well on new data.":
+  print("For this particular data experiment, complete case analysis produced the most effective model. However, there is a risk that it would not generalise well on new data.")
+
+elif better_model=="MI" and approach=="As MCAR hypothesis is supported and missing data is less than 10%, complete case analysis is likely to produce unbiased results. However, multiple imputation may produce a more effective model in some circumstances.":
+  print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, complete case analysis would be likely to produce unbiased results also.")
+  
+elif better_model=="CCA" and approach=="As MCAR hypothesis is supported and missing data is less than 10%, complete case analysis is likely to produce unbiased results. However, multiple imputation may produce a more effective model in some circumstances.":
+  print("For this particular data experiment, complete case analysis produced the most effective model. However, multiple imputation may produce a more effective model in some circumstances.")
+
+elif better_model=="MI" and approach=="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model.":
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This result is expected, given variables provided.")
+   
+elif better_model=="CCA" and approach=="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model.":
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, caution should be noted over results due to high level of missingness.")
+   
+elif better_model=="MI" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 10% and missing from the dependent variable only, complete case analysis may be the more reliable approach.":
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, caution should be taken with how missing data in dependent variables is handled, as CCA may be more reliable.")
+   
+elif better_model=="CCA" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 10% and missing from the dependent variable only, complete case analysis may be the more reliable approach.":
+   print("For this particular data experiment, complete case analysis produced the most effective model. This should be a reliable approach for this missing data problem.")
+   
+elif better_model=="MI" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. Also, as missing data is less than 50% and the delta sensitivity analysis suggests the results are relatively stable, multiple imputation is the recommended approach.":
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This should be a reliable approach for this missing data problem.")
+   
+elif better_model=="CCA" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. Also, as missing data is less than 50% and the delta sensitivity analysis suggests the results are relatively stable, multiple imputation is the recommended approach.":
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, the MCAR hypothesis is either not supported or unclear so caution is advised on the results produced.")
+   
+elif better_model=="MI" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. The delta sensitivity analysis suggests the results are not stable and indicative of MNAR data. Therefore, a pattern mixture model is recommended for further consideration. There are a couple of R mice package functions worth exploring further for this: mice.impute.ri and mice.impute.mnar.logreg (van Buuren et al., 2023).":
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, it is recommended that a pattern mixture model is considered also.")
+   
+elif better_model=="CCA" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. The delta sensitivity analysis suggests the results are not stable and indicative of MNAR data. Therefore, a pattern mixture model is recommended for further consideration. There are a couple of R mice package functions worth exploring further for this: mice.impute.ri and mice.impute.mnar.logreg (van Buuren et al., 2023).":
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, it is recommended that a pattern mixture model is considered also.")
+   
+else:
+   print("No model evaluation found.")
+
+```
+
+
+--Last updated: August 2023 --  
+
+--End--
