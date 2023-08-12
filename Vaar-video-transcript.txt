@@ -1,0 +1,150 @@
+Vaar Video Transcript
+
+Vaar is an MSc project, submitted as part of an MSc in Computer Science with Data Science at the University of Sunderland (online). It looked at missingness in health data and aims to evaluate imputation and complete case analysis on downstream data models.
+
+This is a 15-minute recorded presentation comprising an introduction for overview, a brief theoretical underpinning section for context, research methods for the practical and experimental work involved, summary results from the data experiments,  an overview and demonstration of the Vaar Notebooks and a discussion of limitations and further areas of investigation.
+
+An overview of the Vaar project – its purpose, relevance, objectives and importance.
+
+Hospital and health data can provide Important Insights and data models are very good at pattern recognition, classification and prediction. They can benefit day-to-day patient care as well as studying diseases in the population. 
+
+However, data collected in hospitals is typically not research-ready. Mandreoli et al (2022) write that the intrinsic data issues of sparsity, scarcity, imbalance and time inconsistencies must be addressed before training machine learning models.
+
+The aim of this project is to develop a prototype system for evaluating data imputation efforts when applied to clinical data, enabling researchers to select the most appropriate choice.
+Vaar is an Orcadian sailing term meaning to guide or direct (Orkney is well known for its wild seas); and Vaar also conveys the variable nature of data. 
+Can the Vaar project contribute to providing some clarity around which approaches researchers can use to improve model accuracy, or when particularl approaches wouldn’t be advised?
+
+It was evident from the literature review that good practice for managing and reporting missing data is not often followed. Even where papers and models are based on well-loved UCI datasets with missing data, missingness is not mentioned at all never mind the missing data mechanism or how missingness was managed.
+
+It’s not an easy issue to manage. There is no statistical measure to differentiate MAR from MNAR, subject experts can only advise so far and it’s very time-consuming to pre-process data and missingness needs to be dealt with up-front.
+
+An inappropriate missing data method can lead to bias and fragility in results, loss of important information leading to invalid conclusions and a model that may not generalise well on new data.
+
+The key objectives for the Vaar prototype is that it is:
+
+To be built on an evidence-based approach: consensus in literature and data experiment results
+To be open, transparent and reproducible
+To be adaptable to variability of data issues and problems
+To ascertain whether data is more likely to be MCAR or MAR/MNAR
+To recommended an approach for managing missing data that considers stability of test model results
+To evaluate imputation efforts against test model
+
+This is a whistlestop tour of the key points identified in the literature review, which is also available for further information, looking at areas of consensus and challenge.
+
+Broad areas of consensus were identified in the literature review that helped focus the Vaar project. Despite this consensus on the importance of reason for missingness, and when complete case analysis is usually only appropriate, many papers using UCI’s publicly available datasets do not follow generally accepted good practice. The prototype was built on these areas to provide a framework of steps that can be followed.
+
+The Vaar project focused on those areas where there is a lack of consensus or the biggest challenges – missingness levels, non-ignorable missingness, effect on downstream models – and considered how a prototype can support researchers through good practice steps with robust analysis.
+
+These are the specific hypotheses that the missing data experiments tested, to provide some evidence on which to base recommendations made in the Vaar notebook. 
+
+The quantitative data experiments were the primary research method.
+
+In addition, there was a quantitative survey to seek feedback from people in the field working with health data on a day-to-day basis about their missing data practices and common tools to help steer prototype development. The sample size was too small for decisions to be based upon the results, a summary of responses received is available separately also. After the prototype was built, the code was peer-reviewed and a qualitative interview took place based on a usability task. The primary analysis was the data experiments. 
+
+The first step in the experiment was to create different levels of missing data, using missMethods (Rockel, 2022) library in R Studio. For each of the experiments, missingness rates of 10%, 20%, 50%, 70% and 90% were created based on MCAR, MAR and MNAR.
+
+The second step was to impute the missing data using MICE and then check the accuracy to get a feel for how the imputation has worked. MAE (mean absolute error) was used to measure the accuracy of numerical variables and confusion matrix accuracy for factors. 
+
+Complete Case Analysis datasets were also created for each missingness level and mechanism.
+
+A baseline model was created for each of the nine datasets, using the original data with no missingness. The complete cases and imputed datasets were then run through this model also, comparing their performance against a test set within their own data – to get a feel for how misleading subset results can be – and the baseline test dataset.
+
+Outcomes, Results and Evaluation
+
+Results are available for each of the experiments. This presentation will summarise the results overall. Each model result was categorized as poor, fair or good based on Kappa score where available or the key metric for the data problem. Multiple imputation consistently outperformed complete case analysis at 10 and 20% missingness.
+
+Beyond this level, comparisons were no longer possible. No experiments could produce results. Regardless of reason for missingness, complete case analysis quickly became unworkable. 
+
+Looking at complete case performance in more detail, where data was MCAR results were more reliable – in that ‘fair’ or ‘good’ models resulted more than 50% of the time with 10% missingness. However, poor performance resulted in almost every experiment when missingness reached 20% regardless of the missingness mechanism. 
+
+Multiple imputation can provide reliable results with high levels of missingness
+
+Even with 50% missingness, good or fair results were returned more than 50% of the time. As MI is designed for MAR data, a better performance is observed here than with other missingness mechanisms but results are still comparable with those achieved by CCA data with 10% missingness.
+
+At 70% missingness, MCAR and MNAR data produced poor results – or could not produce results at all – in the majority of cases. Only MAR data produced good or fair models against the baseline test data in more than 50% of instances. The data experiments underline the importance of reason for missingness in selecting a method to manage missing data.
+
+Although there were not enough survey responses to use as a basis for decision making it is interesting to reflect on the key points. Opinions reflected where there is a lack of consensus in the literature and the themes of variability, adaptability and flexibility were noted throughout. 
+
+An overview of the Vaar system.
+
+The logic that drives the Vaar recommendations is available in R and Python markdown notebooks as templates, and with examples of UCI health datasets that have missing data. This solution was chosen as it’s open source, commonly used by researchers, data scientists and data analysts working with health data and can be adapted to meet varying needs. There are a minimum number of variables that must be set in order to return recommendation and an evaluation of imputation efforts. The next slide will show the notebook in more detail.
+
+Description:
+There are two Markdown templates, produced for an MSc project, one in Python and one in R that will return:
+- Whether data is MCAR or MAR/MNAR
+- A recommended missing data approach which also accounts for indicative model result stability
+- An evaluation of imputation efforts against a test model
+
+Coding experience of R or Python is necessary, as due to the variability of data it is expected that additional code blocks will need to be included. 
+
+Code blocks can be copied and pasted from the markdown templates and exemplars. To use the full notebooks, the following packages are required.
+
+R Libraries Required for R version:
+- data.table to read in data
+- tidyverse to rename variables and tidy data
+- janitor to clean variable names
+- naniar for MCAR Test and other missing data functions
+- visdat to visualise missing data
+- ggplot for visualisation
+- GGally for pairs ggplot extension
+- psych for skew function
+- rpart and rpart.plot for proportion missing data integration with naniar
+- mice for fluxplot and multiple imputation
+- caret for correlation and confusion matrix
+- randomForest (optional: example included in template)
+
+Step 1: Read data
+Step 2: Tidy data
+Step 3: Visualise data and run MCAR Test
+Step 4: Set key variable values:
+        MCAR Test p-value (or 'error' if data singular)
+		Yes or No for likelihood variable if data more likely to be missing from some variables
+		Yes or No if data missing from dependent variable(s) only
+		Proportion of data missing overall as float (automatically set in Python version)
+Step 5: Visualise variable importance for predicting missingness
+		Identify variable that will be used in delta adjustment: variable with missing data nearest the top of the tree
+Step 6: Create complete case and imputed datasets
+Step 7: Conduct MNAR Sensitivity Test
+		Create imputed dataset with highest delta adjustment
+		Optional step to remove outliers
+Step 8: Select Features
+		Optional step to transform data (some data already scaled)
+Step 9: Build and Test Models (CCA, Imputed, Imputed Delta)
+		Create Test and Training data for each
+		Set variable value CCA or MI for better_model
+		Set variable value Yes or No for delta_impact
+Lastly: Run 3 code blocks to print summaries:
+		MCAR or MAR/MNAR Hypothesis
+		Recommended approach for missing data
+		Model evaluation
+
+In the best tradition of BBC Children’s Programmes, here is one I created earlier due to computational time. This is an example using the Python Template, as I wanted to run through the Python libraries required too, and the Breast Cancer Wisconsin Original dataset. 
+
+Python Libraries Required:
+- pandas to read in data
+- numpy for summary statistics
+- seaborn and matplot lib for visualisation
+- r-naniar (see below)
+- scipy - numpy extension for skew
+- sklearn for imputation, model, metrics and minmaxscaler
+
+R Libraries Required for Python version:
+- Reticulate so both Python and R environments available
+- naniar for MCAR test
+- rpart and rpart.plot for proportion missing data integration with naniar
+
+There are some limitations noted here. R provides a more robust solution than Python and more examples and testing would be beneficial. However, flexibility was designed in. There is no one-size fits all solution. By following the steps, sensible suggestions should be made on how to manage missing data. In some circumstances there may be more than one reliable approach and in some circumstances none. 
+
+A surprising result of the data experiments was that multiple imputed data can produce more effective results on downstream models, against the baseline test data, than the baseline models with no missingness.
+
+This may be due to data leakage between the training and test data sets. However, this could not be the reason in the Hungarian Chicken Pox Cases forecasting results, for example, as the data was split into the same timeseries for training and testing in all experiments. 
+
+This may be due to the underlying principles that multiple imputation shares with data augmentation. It would be interesting to explore this in data experiments designed to test this specifically: can a data model be boosted by introducing less than 20% missingness and multiple imputation to the training data? No papers could be found that considered the application of multiple imputation to boost training.
+
+The references cited in this presentation are:
+Van Buuren et al’s mice package
+Manderoli, F et al. ‘Real-world data mining meets clinical practice’
+T Rockel’s missMethods package
+And N Tierney’s naniar package
+
+Thank you for your time.
