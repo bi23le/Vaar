@@ -1,0 +1,604 @@
+---
+title: "Vaar R Template Notebook"
+author: "Amanda Harris"
+output: html_notebook
+params:
+  printcode: true
+---
+
+This Vaar Template R Notebook aims to return:  
+-  Whether data is more likely to be MCAR or MAR/MNAR  
+-  A recommended approach for managing missing data that considers stability of model results  
+-  Evaluation of imputation efforts based on data model experiment results  
+
+Work through the steps outlined with your own data, setting key variable values as you work through the notebook, and adding further code blocks if required. Comment out any code not required for your data - such as renaming variables.
+
+# Step 1: Read in data and show data summary  
+
+Data.table package used to read in file (from website for example.)
+
+```{r}
+library(data.table)
+df <- fread('file', header=FALSE, stringsAsFactors = FALSE)
+head(df)
+summary(df)
+```
+
+
+# Step 2: Copy and Tidy Data
+Tidyverse package used to rename variables. Example code included below
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(naniar)
+#may need to clean variable names
+df <- df %>%
+        clean_names()
+dfcp <- df #copy data
+
+#may need to assign value NA to "?"
+dfcp <- dfcp %>% replace_with_na_all(condition = ~.x == "?")
+
+#may need to rename variables to something more meaningful
+dfcp <- rename (dfcp, 
+                        new1=V1, new2=V2, new3=V3, new4=V4, new5=V5)
+
+#Where columns have missing data may need to convert from characters to integers
+#dfcp$new1 <- as.integer(dfcp$new)
+
+```
+
+
+## Check for Duplicates
+Duplicates checked using n_distinct in tidyverse package
+
+```{r}
+n_distinct(dfcp)
+
+#filter to check and review any duplicate records
+duplicates <- dfcp %>%
+  filter(duplicated(.))
+
+print(duplicates)
+```
+
+### Remove duplicates and any unnecessary variables for model such as id
+Only if unique identifiers exist.
+```{r}
+dfcp <- dfcp %>% distinct() #remove duplicates
+#dfcp <- select(dfcp,-c(new1)) #remove unnecessary columns
+```
+
+# Step 3: Visualise Missing Data and run MCAR Test
+
+Packages used: visdat to explore missing values, ggplot to explore missing data further and naniar for geom_miss_point function and MCAR test.  
+**There will be a warning with MCAR test if non-numeric columns are present. If p-value >0.05 likely to be MCAR as not statistically significant.**
+The naniar test may also error due to singular data and a fix has not been found for this yet (August 2023). 
+
+```{r}
+library(visdat)
+library(ggplot2)
+library(naniar)
+
+vis_miss(dfcp)
+miss_var_summary(dfcp)
+
+#optional plot for classification problem
+#ggplot(dfcp,
+       #aes (x = class,
+           # y = variable-with-missining-data,)) +
+  #geom_miss_point() +
+  #ggtitle ("Graph Showing Missing Data Pattern By Class Diagnosis")
+#ggplot
+
+mcar_test(dfcp)
+```
+
+# Step 4: Look at Outputs from Visualising the Missing Data and Answer the Following Questions
+
+#### What is the p.value returned by the MCAR Test?
+If the statistic is high and the p.value <0.05 it is likely to be MNAR or MAR and cannot be ignored. A p-value >0.05 indicates MCAR but other information will be considered also. The value is set as a variable in the following code. Enter "error" if MCAR Test not possible due to data singularity.
+
+```{r}
+#set MCAR Test p.value as variable
+mcar_presult = 
+
+if(mcar_presult=="error" || is.numeric(mcar_presult)){print(paste(mcar_presult, "is MCAR Test p.value variable value."))
+}else{
+    print("Please enter either a number or 'error' as the mcar_presult variable value.")}
+
+```
+
+
+#### Is data more likely to be missing in some variables?
+If so, this indicates that the data could be missing at random (MAR) or missing not at random (MNAR) and can therefore not be ignored. Yes or No is set as a variable in the following code.
+```{r}
+#set likelihood variable
+likelihood = "Yes or No"
+
+if(likelihood=="Yes" || likelihood=="No") {print(paste(likelihood, "is variable value for likelihood."))
+}else{
+    print("Please enter either 'Yes' or 'No' as the variable value for likelihood.")}
+```
+
+#### Is data missing from the dependent variable only?
+If so, this suggests that complete case analysis may be the best option. However, other factors need to be considered also. Yes or No is set as variable in the following code.
+
+```{r}
+#set dependent missingness variable
+dependent_only = "Yes or No"
+
+if(dependent_only=="Yes" || dependent_only=="No") {print(paste(dependent_only, "is variable value for dependent_only."))
+}else{
+    print("Please enter either 'Yes' or 'No' as the variable value for dependent_only.")}
+```
+
+
+#### What percentage of data is missing?
+If it's between 0.1-0.5 multiple imputation is likely to result in a more effective, unbiased model. The value is set as a variable in the following code in the format 0.000. This is taken from the missing data visualisation.
+
+```{r}
+#set missingness variable value
+missingness = 
+
+if(is.numeric(missingness)){print(paste(missingness, "is missingness variable value."))
+}else{
+    print("Please enter a number as the missingness variable value.")}
+```
+
+
+####It's good practice to test different approaches and the Vaar Notebooks will consider these, as well as the variable values just set in recommendations.
+
+
+## Visualise Correlation
+Visualise correlation for numerical variables.
+
+```{r}
+#subset numerics for correlation
+dfcp_x <- select_if(dfcp, is.numeric)
+cor(dfcp_x)
+
+vis_cor(dfcp_x)
+```
+
+```{r}
+library(GGally) #ggplot2 extension for pairs matrix
+#if classification problem
+#Change class from integer to factor
+dfcp$class <- as.factor(dfcp$class)
+
+pm <- ggpairs(dfcp, columns = 1:10, ggplot2::aes(colour = class), lower=list(combo=wrap("facethist",  
+                                                                                                  binwidth=0.5)))
+pm
+
+```
+
+## Calculate Skew
+
+```{r}
+library(psych) #for skew function
+skew(dfcp_x) #using numeric subset created for correlation
+```
+
+# Step 5: which variables and values are important for predicting proportion of missingness?
+
+rpart and rpart.plot packages are used to plot a simple classification tree.
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+dfcp %>%
+  add_prop_miss() %>%
+  rpart(prop_miss_all ~ ., data=.) %>%
+  prp(type=4, extra = 101, roundint=FALSE, prefix="Prop.Miss = ")
+```
+
+#### Which variable with missing data is nearest the top of the tree?
+Variable value for missingness influencer set in code below. There may only be one variable with missing data, in which case set this as the value.
+```{r}
+#set value for missingness influencer
+miss_influencer=
+```
+
+```{r}
+library(mice)
+fxpt <- fluxplot(dfcp)
+# Variables with higher outflux may be more powerful predictors. More meaningful where data is missing from more than one variable.
+```
+
+#### Change Columns to Factors Where Necessary
+```{r}
+dfcp <- as.data.frame(dfcp) 
+
+dfcp <- dfcp  %>% mutate(across(c("var1", "var2"), as.factor))
+
+```
+
+#### Change Columns to Integers Where Necessary
+```{r}
+dfcp <- dfcp  %>% mutate(across(c("var3", "var4"), as.integer))
+```
+
+
+# Step 6: Create Complete Case and Multiple Imputed Datasets
+Create complete dataset by deleting records with missing values and run Multiple Imputation using MICE. Try adjusting maxit or manually set suitable imputation method for each variable (e.g. meth = init$method=c("pmm", "pmm", "pmm", "pmm", "logreg")) if mice errors received. 
+
+```{r}
+dfcp_cca <- dfcp[complete.cases(dfcp), ] 
+
+init = mice(dfcp, maxit=5) 
+meth = init$method
+predM = init$predictorMatrix
+
+#create imputed data
+set.seed(123)
+dfcp_imp = mice(dfcp, method=meth, predictorMatrix=predM, m=5)
+#create dataset after imputation
+dfcp_mi <- complete(dfcp_imp)
+```
+
+Create visualisations to ensure complete data returned.
+```{r}
+#check for missing data in MI and CCA dataset
+vis_miss(dfcp_mi)
+vis_miss(dfcp_cca)
+```
+As mice is designed for MAR data, imputations may not be possible for MNAR data with high levels of missingness. Also check for collinearity and that all variables are suitable for imputation if errors occur. For example, dates or values based on other columns can be corrected separately.
+
+# Step 7: Conduct MNAR Sensitivity Test
+
+Use the variable with missing data which has the most influence on proportion of missingness, according to step 5 and look at the range of values in this variable (in the summary at the top of the notebook for example). Generate imputations under delta adjustment to imitate deviations from MAR (Gink and Van Buuren, no date). The code uses 0 for MAR and a reasonable range based on the variable range as the delta values to test MNAR.
+
+```{r}
+max(dfcp_mi$Vx)
+min(dfcp_mi$Vx)
+mean(dfcp_mi$Vx)
+```
+
+
+```{r}
+
+#Generate imputations under delta adjustment
+delta <- c(0, +1, +2, +3, +4) #examples to be changed
+imp.d <- vector("list", length(delta))
+post <-dfcp_imp$post
+
+for (i in 1:length(delta)) {
+  d <- delta[i]
+  cmd <- paste("imp[[j]][,i] <- imp[[j]][,i] +", d)
+  post["missing-data-variable-most-influence"] <- cmd
+  imp <- mice(dfcp, post = post, maxit = 5,
+              seed = i, print=FALSE)
+  imp.d[[i]] <- imp
+}
+```
+
+## Inspect Imputations
+
+The first plot is based on no delta adjustment and the second plot is the highest adjustment. The Y axis scale is set to the same value, so that differences can be visualised more easily. 
+
+```{r}
+densityplot(imp.d[[1]],lwd=3, ylim=c(0,4)) #check ylim is appropriate for variables
+densityplot(imp.d[[5]],lwd=3, ylim=c(0,4)) #check ylim is appropriate for variables
+```
+
+Find out more about sensitivity analysis in the context of missing data from Gerko Vink and Stef van Buuren's vignette [mice: An approach to sensitivity analysis](https://www.gerkovink.com/miceVignettes/Sensitivity_analysis/Sensitivity_analysis.html) (Vink and van Buuren, no date). 
+
+The second density plot considers imputations under the largest adjustment, look at the blue line in particular.
+
+## Create Complete Datasets with Delta Imputations 1 to 5
+Create complete datasets and check imputations have worked by visualising missing data.
+
+```{r}
+#delta 1 is the dfcp_mi data
+dfcp_mi_d2 <- complete(imp.d[[2]])
+dfcp_mi_d3 <- complete(imp.d[[3]])
+dfcp_mi_d4 <- complete(imp.d[[4]])
+dfcp_mi_d5 <- complete(imp.d[[5]])
+
+
+vis_miss(dfcp_mi_d2)
+vis_miss(dfcp_mi_d3)
+vis_miss(dfcp_mi_d4)
+vis_miss(dfcp_mi_d5)
+
+```
+
+## Optional Step: Remove Outliers
+There can be valuable information in outliers and it is good practice to remove obvious errors only - such as impossible values for particular variables. 
+
+
+# Step 8: Select Features
+This code is an example of how to determine which variables have above 0.9 correlation, as highly-correlated features do not generally improve models. Then, remove any variables identified from all datasets.
+
+```{r}
+library(caret)
+#remove class, factors or dependent variables as looking for co-correlation issues
+#0.9 and above
+dfcp_mi_cor = subset(dfcp_mi, select = -c(class,V5))
+                
+dfcp_mi_cor_res <- cor(dfcp_mi_cor)
+dfcp_mi_cor_res <- as.data.frame(as.table(dfcp_mi_cor_res))
+
+dfcp_mi_cor_res %>%  arrange(desc(Freq)) %>% filter(Freq>0.9)
+dfcp_mi_cor_res %>%  arrange(desc(Freq)) %>% filter(Freq< -0.9)
+
+```
+
+```{r}
+#remove identified variables from other datasets also
+
+dfcp_mi = subset(dfcp_mi, select = -c(V1, V2))
+dfcp_cca = subset(dfcp_cca, select = -c(V1, V2))
+dfcp_mi_d2 = subset(dfcp_mi_d2, select = -c(V1, V2))
+dfcp_mi_d3 = subset(dfcp_mi_d3, select = -c(V1, V2))
+dfcp_mi_d4 = subset(dfcp_mi_d4, select = -c(V1, V2))
+dfcp_mi_d5 = subset(dfcp_mi_d5, select = -c(V1, V2))
+```
+
+## Optional step: Transform data
+Scaling data allows models to compare relative relationships between data points more effectively. Some datasets may already be scaled.
+
+```{r}
+#scale the numeric columns in all the datasets to be used in the test models
+
+dfcp_mi <- dfcp_mi %>% mutate(across(where(is.numeric), scale))
+dfcp_cca <- dfcp_cca %>% mutate(across(where(is.numeric), scale))
+dfcp_mi_d5 <- dfcp_mi_d5 %>% mutate(across(where(is.numeric), scale))
+
+```
+
+Log transformation can be helpful for linear models for example. 
+
+# Step 9: Build and Test Models
+
+## Create Training and Test Sets
+Seeds set for reproducibility.
+
+```{r}
+#mi data
+set.seed(123)
+index <- sample(2, nrow(dfcp_mi),
+              replace = TRUE,
+              prob = c(0.7, 0.3))
+train_mi <- dfcp_mi[index==1,]
+test_mi <- dfcp_mi[index==2,] 
+
+#cca data
+set.seed(123)
+index1 <- sample(2, nrow(dfcp_cca),
+                 replace = TRUE,
+                 prob = c(0.7, 0.3))
+train_cca <- dfcp_cca[index1==1,] 
+test_cca <- dfcp_cca[index1==2,] 
+
+#delta5 data
+set.seed(123)
+index5 <- sample(2, nrow(dfcp_mi_d5),
+                 replace = TRUE,
+                 prob = c(0.7, 0.3))
+train_d5 <- dfcp_mi_d5[index5==1,] 
+test_d5 <- dfcp_mi_d5[index5==2,] 
+```
+
+
+## Predict Against Test Data
+Start with baseline model using multiple imputation. Random Forest included as code example only. 
+
+```{r}
+library(randomForest)
+#Create x and y values
+#dfcp_mi data
+x <- train_mi[,-31] #remove dependent variable 
+y <- as.factor(train_mi$class) 
+set.seed(345) #for reproducibility
+
+#Fit model with training data and review details
+rf = randomForest(x = x,
+                  y = y,
+                  ntree = 500)
+rf
+
+#predict results
+xt <- test_mi[,-31] #remove dependent variable like class
+yt <-as.factor(test_mi$class) #keep class only
+pred_yt <- predict(rf, newdata=xt)
+
+#check accuracy
+confusionMatrix(pred_yt, yt, mode="everything")
+
+varImpPlot(rf)
+```
+
+Sample code block for CCA data.
+
+```{r}
+#Create x and y values
+#dfcp_cca data
+x1 <- train_cca[,-31]
+y1 <- as.factor(train_cca$class)
+set.seed(345) #for reproducibility
+
+#Fit model with training data and review details
+rf1 = randomForest(x = x1,
+                  y = y1,
+                  ntree = 500)
+rf1
+
+#predict results
+x1t <- test_cca[,-31] #remove dependent variable like class
+y1t <-as.factor(test_cca$class) #keep class only
+pred_y1t <- predict(rf1, newdata=x1t)
+
+#check accuracy
+confusionMatrix(pred_y1t, y1t, mode="everything")
+
+varImpPlot(rf1)
+```
+### Which Model Produced the Best Results?
+The following code block captures the model which produced the best results, based on Kappa and core metric best suited to the problem.
+```{r}
+# set model variable for best performance as MI or CCA
+better_model =
+
+if(better_model=="MI" || better_model=="CCA") {print(paste(better_model, "produced the best result in this data experiment test."))
+}else{
+    print("Please enter either 'MI' or 'CCA' as the variable value for better_model.")}
+```
+
+
+
+### Does Highest Delta Adjustment Have Big Impact on Results?
+Code block included to edit for delta model.
+
+```{r}
+#Create x and y values
+#dfcp_d5 data
+x5 <- train_d5[,-31]
+y5 <- as.factor(train_d5$class)
+set.seed(345) #for reproducibility
+
+#Fit model with training data and review details
+rf5 = randomForest(x = x5,
+                  y = y5,
+                  ntree = 500)
+rf5
+
+#test with test data
+x5t <- test_d5[,-31]
+y5t <-as.factor(test_d5$class)
+pred_y5t <- predict(rf5, newdata=x5t)
+
+#check accuracy
+confusionMatrix(pred_y5t, y5t, mode="everything")
+
+varImpPlot(rf5)
+```
+
+The impact result is captured as a Yes or No response in the code below.
+```{r}
+#Is there a big impact on result?
+#Is there a big impact on results?
+delta_impact = 
+
+if(delta_impact=="Yes" || delta_impact=="No") {print(paste(delta_impact, "is variable value for delta_impact."))
+}else{
+    print("Please enter either 'Yes' or 'No' as the variable value for delta_impact.")}
+```
+
+
+# Summary and Recommendations
+The following code will print a summary, based on the variable information recorded in earlier code blocks. 
+
+### Variable Parameters Set In Experiment
+```{r}
+print(paste(missingness, "is missing data level."))
+print(paste("Is data more more likely to be missing in some variables than others?", likelihood))
+print(paste("Is data missing from dependent variable(s) only?", dependent_only))
+print(paste("Does higher delta adjustment have big impact on results?", delta_impact))
+```
+
+
+### Is Data MCAR or MAR/MNAR?
+```{r}
+
+if (likelihood=="No" & mcar_presult=="error") {
+   hypothesis="Missing data pattern provides some support for MCAR hypothesis. However, no result available for MCAR Test."
+   } else if (likelihood=="No" & mcar_presult<0.05) {
+   hypothesis="Hypothesis unproven. MCAR Test and missing data pattern indicate different missing data mechanisms."
+   } else if (likelihood=="No" & mcar_presult>=0.05) {
+     hypothesis="MCAR hypothesis supported by MCAR Test and missing data pattern."
+   } else if(likelihood=="Yes" & mcar_presult=="error") {
+     hypothesis="Missing data pattern provides some support for MAR/MNAR hypothesis. However, no result available for MCAR Test."
+   } else if (likelihood=="Yes" & mcar_presult<0.05) {
+     hypothesis="MAR/MNAR hypothesis supported by MCAR Test and missing data pattern."
+   }else if (likelihood=="Yes" & mcar_presult>=0.05) {
+     hypothesis="Hypothesis unproven. MCAR Test and missing data pattern indicate different missing data mechanisms."
+   }else {
+   print("No hypothesis found.")
+}
+
+print(hypothesis)
+```
+
+### Recommended Approach for Missing Data
+```{r}
+#define different recommended approaches
+data_approach1 = "Due to overall level of missing data (or level of missing data from dependent variable only) there is a risk that a poor model will be returned, regardless of method used, that would not generalise well on new data."
+
+data_approach2 = "As MCAR hypothesis is supported and missing data is less than 10%, complete case analysis is likely to produce unbiased results. However, multiple imputation may produce a more effective model in some circumstances."
+
+data_approach3 = "MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model."
+
+data_approach4 = "MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 10% and missing from the dependent variable only, complete case analysis may be the more reliable approach."
+
+data_approach5 = "MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. Also, as missing data is less than 50% and the delta sensitivity analysis suggests the results are relatively stable, multiple imputation is the recommended approach."
+
+data_approach6 = "MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. The delta sensitivity analysis suggests the results are not stable and indicative of MNAR data. Therefore, a pattern mixture model is recommended for further consideration. There are a couple of R mice package functions worth exploring further for this: mice.impute.ri and mice.impute.mnar.logreg (van Buuren et al., 2023)."
+
+#define conditional statements
+if (missingness>=0.5) {
+   approach=data_approach1
+   } else if (missingness>0.1 & dependent_only=='Yes') {
+     approach=data_approach1
+   } else if (hypothesis=="MCAR hypothesis supported by MCAR Test and missing data pattern." & missingness<=0.1) {
+       approach=data_approach2 
+   } else if (hypothesis=="MCAR hypothesis supported by MCAR Test and missing data pattern." & missingness>0.1 & missingness<0.5) {
+     approach=data_approach3 
+   } else if(hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern." & missingness<=0.1 & dependent_only=="Yes") {
+     approach=data_approach4
+   } else if(hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern." & missingness<=0.5 & delta_impact=="No") {
+     approach=data_approach5
+   } else if(hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern."  & delta_impact=="Yes") {
+     approach=data_approach6
+   }else {
+   print("No approach found.")
+}
+
+print(approach)
+
+```
+
+### Consideration of Test Model Results in Data Experiment
+```{r}
+
+if (better_model=="MI" & approach==data_approach1) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, there is a risk that it would not generalise well on new data.")
+   } else if (better_model=="CCA" & approach==data_approach1) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, there is a risk that it would not generalise well on new data.")
+   } else if (better_model=="MI" & approach==data_approach2) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, complete case analysis would be likely to produce unbiased results also.")
+   } else if (better_model=="CCA" & approach==data_approach2) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, multiple imputation may produce a more effective model in some circumstances.")
+   } else if (better_model=="MI" & approach==data_approach3) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This result is expected, given variables provided.")
+   } else if (better_model=="CCA" & approach==data_approach3) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, caution should be noted over results due to high level of missingness.")
+   } else if (better_model=="MI" & approach==data_approach4) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, caution should be taken with how missing data in dependent variables is handled, as CCA may be more reliable.")
+   } else if (better_model=="CCA" & approach==data_approach4) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. This should be a reliable approach for this missing data problem.")
+   } else if (better_model=="MI" & approach==data_approach5) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This should be a reliable approach for this missing data problem.")
+   } else if (better_model=="CCA" & approach==data_approach5) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, the MCAR hypothesis is either not supported or unclear so caution is advised on the results produced.")
+   } else if (better_model=="MI" & approach==data_approach6) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, it is recommended that a pattern mixture model is considered also.")
+   } else if (better_model=="CCA" & approach==data_approach6) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, it is recommended that a pattern mixture model is considered also.")
+   } else {
+   print("No model evaluation found.")
+}
+```
+
+
+
+# References
+- van Buuren, S. et al. (2023) ‘mice: Multivariate Imputation by Chained Equations’. CRAN. Available at: https://CRAN.R-project.org/package=mice (Accessed: 10 August 2023).
+- Vink, G. and van Buuren, S. (no date) mice: An approach to sensitivity analysis, www.gerkovink.com. Available at: https://www.gerkovink.com/miceVignettes/Sensitivity_analysis/Sensitivity_analysis.html (Accessed: 5 August 2023).
+
+
+--Last updated: August 2023  
+--End--
