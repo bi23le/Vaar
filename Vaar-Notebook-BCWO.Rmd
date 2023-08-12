@@ -1,0 +1,648 @@
+---
+title: "Vaar R Notebook: Breast Cancer Wisconsin Original"
+author: "Amanda Harris"
+output: html_notebook
+params:
+  printcode: true
+---
+
+This is an exemplar workbook showing how the Vaar Notebook can be applied to UCI's Breast Cancer Wisconsin Original Data (Wolberg, 1992) dataset to return:  
+- Whether data is more likely to be MCAR or MAR/MNAR  
+- A recommended approach for managing missing data that considers stability of model results  
+- Evaluation of imputation efforts based on data model experiment results  
+
+
+# Step 1: Read in data and show data summary  
+
+Data.table package used to read in file from website. This is a binary classification problem to diagnose breast cancer malignancy, where the target diagnosis is the minority class. 
+
+```{r}
+library(data.table)
+df <- fread('https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data', header=FALSE, stringsAsFactors = FALSE)
+head(df)
+summary(df)
+
+library(tidyverse) # to use pipes
+#count obs per class
+df %>%
+  count(V11)
+```
+
+
+Note in summary of dataframe that V7 is the only character variable, the others are integers. There are 241 malignant and 458 benign observations in the data.
+
+# Step 2: Copy and Tidy Data
+Tidyverse package used to rename variables.
+
+```{r}
+dfcp <- df #copy data
+
+#rename variables to something more meaningful
+dfcp <- rename (dfcp, 
+                        sampleID=V1, ClumpThickness=V2, CellSize=V3, CellShape=V4, Adhesion=V5, 
+                        SingleESize=V6, BareNuclei=V7, BlandChromatin=V8, NormalNucleoli=V9, 
+                        Mitoses=V10, Diagnosis=V11)
+
+#Convert V7 variable to integer also
+#This is now named BareNuclei
+dfcp$BareNuclei <- as.integer(dfcp$BareNuclei)
+
+```
+
+
+## Check for Duplicates
+Duplicates checked using n_distinct in tidyverse package
+
+```{r}
+n_distinct(dfcp)
+
+#filter to check and review any duplicate records
+duplicates <- dfcp %>%
+  filter(duplicated(.))
+
+print(duplicates)
+```
+There are 691 unique records out of 699 observations(8 duplicates printed). 
+
+### Remove duplicates and ID variable
+
+```{r}
+dfcp <- dfcp %>% distinct() #691 obs remaining
+dfcp <- select(dfcp,-c(sampleID)) #remove sampleID column 10 variables remain
+```
+
+# Step 3: Visualise Missing Data and run MCAR Test
+
+Packages used: visdat to explore missing values, ggplot to explore missing data further and naniar for geom_miss_point function and MCAR test.  
+**There will be a warning with MCAR test if non-numeric columns are present. If p-value >0.05 likely to be MCAR as not statistically significant.**
+
+```{r}
+library(visdat)
+library(ggplot2)
+library(naniar)
+
+vis_miss(dfcp)
+miss_var_summary(dfcp)
+
+ggplot(dfcp,
+       aes (x = Diagnosis,
+            y = BareNuclei,)) +
+  geom_miss_point() +
+  ggtitle ("Graph Showing Missing Data Pattern By Class Diagnosis")
+ggplot
+
+mcar_test(dfcp)
+```
+# Step 4: Look at Outputs from Visualising the Missing Data and Answer the Following Questions
+
+#### What is the p.value returned by the MCAR Test?
+If the statistic is high and the p.value <0.05 it is likely to be MNAR or MAR and cannot be ignored. A p-value >0.05 indicates MCAR but other information will be considered also. The value is set as a variable in the following code.
+```{r}
+#set MCAR Test p.value as variable
+mcar_presult = 0.2168686
+
+```
+
+
+#### Is data more likely to be missing in some variables?
+If so, this indicates that the data could be missing at random (MAR) or missing not at random (MNAR) and can therefore not be ignored. Yes or No is set as a variable in the following code.
+```{r}
+#set likelihood variable
+likelihood = "Yes"
+```
+
+#### Is data missing from the dependent variable only?
+If so, this suggests that complete case analysis may be the best option. However, other factors need to be considered also. Yes or No is set as variable in the following code.
+```{r}
+#set dependent missingness variable
+dependent_only = "No"
+```
+
+
+#### What percentage of data is missing?
+If it's between 20-50% multiple imputation is likely to result in a more effective, unbiased model. The value is set as a variable in the following code.
+```{r}
+#set missingness variable value
+missingness = 0.02315485
+```
+
+
+It's good practice to test different approaches and the Vaar Notebooks will consider these, as well as the variable values just set in recommendations.
+
+
+## Visualise Correlation
+Visualise correlation for numerical variables.
+
+```{r}
+dfcp_x <- select_if(dfcp, is.numeric)
+cor(dfcp_x)
+
+vis_cor(dfcp_x)
+```
+
+There is a high level of correlation between variables and likely co-correlation between CellSize and CellShape for this dataset. 
+
+```{r}
+library(GGally) #ggplot2 extension for pairs matrix
+#Change Diagnosis from integer to factor
+dfcp$Diagnosis <- as.factor(dfcp$Diagnosis)
+
+pm <- ggpairs(dfcp, columns = 1:10, ggplot2::aes(colour = Diagnosis), lower=list(combo=wrap("facethist",  
+                                                                                                  binwidth=0.5)))
+pm
+
+```
+
+Majority class - benign - has a lot more outliers and there is a high positive skew to the benign class also in the data. There is a moderate negative skew on some of the malignant class variables.
+
+## Calculate Skew
+
+```{r}
+library(psych) #for skewness function
+skew(dfcp_x)
+```
+
+# Step 5: which variables and values are important for predicting proportion of missingness?
+
+rpart and rpart.plot packages are used to plot a simple classification tree.
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+dfcp %>%
+  add_prop_miss() %>%
+  rpart(prop_miss_all ~ ., data=.) %>%
+  prp(type=4, extra = 101, roundint=FALSE, prefix="Prop.Miss = ")
+```
+
+#### Which variable is at the top of the tree?
+Adhesion is returned for this dataset. Variable value for missingness influencer set in code below.
+```{r}
+#set value for missingness influencer
+miss_influencer="Adhesion"
+```
+
+```{r}
+fxpt <- fluxplot(dfcp)
+# Variables with higher outflux may be more powerful predictors. More meaningful where data is missing from more than one variable.
+```
+# Step 6: Create Complete Case and Multiple Imputed Datasets
+Create complete dataset by deleting records with missing values and run Multiple Imputation using MICE.
+
+```{r}
+dfcp_cca <- dfcp %>%
+  filter(!is.na(BareNuclei))
+
+library(mice)
+init = mice(dfcp, maxit=0) 
+meth = init$method
+predM = init$predictorMatrix
+
+#create imputed data
+set.seed(123)
+dfcp_imp = mice(dfcp, method=meth, predictorMatrix=predM, m=5)
+#create dataset after imputation
+dfcp_mi <- complete(dfcp_imp)
+
+```
+### Check Imputation Visually
+As warnings given, check imputation was possible.
+```{r}
+#check for missing data in MI and CCA dataset
+vis_miss(dfcp_mi)
+vis_miss(dfcp_cca)
+```
+
+
+
+# Step 7: Conduct MNAR Sensitivity Test
+
+Use the variable which has the most influence on proportion of missingness, according to step 5 and look at the range of values in this variable. Generate imputations under delta adjustment to imitate deviations from MAR (Gink and Van Buuren, no date). The code uses 0 for MAR and a reasonable range based on the variable range as the delta values to test MNAR.
+
+```{r}
+
+#Generate imputations under delta adjustment
+delta <- c(0, +1, +2, +3, +4)
+imp.d <- vector("list", length(delta))
+post <-dfcp_imp$post
+
+for (i in 1:length(delta)) {
+  d <- delta[i]
+  cmd <- paste("imp[[j]][,i] <- imp[[j]][,i] +", d)
+  post["BareNuclei"] <- cmd
+  imp <- mice(dfcp, post = post, maxit = 5,
+              seed = i, print=FALSE)
+  imp.d[[i]] <- imp
+}
+```
+
+## Inspect Imputations
+
+The first plot is based on no delta adjustment and the second plot is the highest adjustment. The Y axis scale is set to the same value, so that differences can be visualised more easily. 
+
+```{r}
+densityplot(imp.d[[1]],lwd=3, ylim=c(0,4))
+densityplot(imp.d[[5]],lwd=3, ylim=c(0,4))
+```
+
+Find out more about sensitivity analysis in the context of missing data from Gerko Vink and Stef van Buuren's vignette [mice: An approach to sensitivity analysis](https://www.gerkovink.com/miceVignettes/Sensitivity_analysis/Sensitivity_analysis.html) (Vink and van Buuren, no date). 
+
+The second density plot considers imputations under the largest adjustment and it has not really had an effect on the imputations. The blue line is fairly consistent between the two plots. 
+
+## Create Complete Datasets with Delta Imputations 1 to 5
+Create complete datasets and check imputations have worked by visualising missing data.
+```{r}
+#review imputations
+print(imp.d[[2]]$imp$BareNuclei)
+print(imp.d[[3]]$imp$BareNuclei)
+print(imp.d[[4]]$imp$BareNuclei)
+print(imp.d[[5]]$imp$BareNuclei)
+```
+
+
+```{r}
+#delta 1 is the dfcp_mi data
+dfcp_mi_d2 <- complete(imp.d[[2]])
+dfcp_mi_d3 <- complete(imp.d[[3]])
+dfcp_mi_d4 <- complete(imp.d[[4]])
+dfcp_mi_d5 <- complete(imp.d[[5]])
+
+
+vis_miss(dfcp_mi_d2)
+vis_miss(dfcp_mi_d3)
+vis_miss(dfcp_mi_d4)
+vis_miss(dfcp_mi_d5)
+
+```
+
+## Optional Step: Remove Outliers
+There can be valuable information in outliers and it is good practice to remove obvious errors only - such as impossible values for particular variables. The large number of outliers observed in the benign class in the pairs chart could be an accurate representation of the natural variability in data and diagnostic challenge.
+
+
+# Step 8: Select Features
+This code is an example of how to determine which variables have above 0.9 correlation, using the caret package, as highly-correlated features do not generally improve models. Then, remove any variables identified from all datasets.
+
+```{r}
+library(caret)
+dfcp_mi_cor <- cor(dfcp_mi%>% select(-Diagnosis))
+dfcp_mi <- dfcp_mi %>% select(-findCorrelation(dfcp_mi_cor, cutoff = 0.9))
+
+#show column name difference between original data and selected features
+setdiff(names(dfcp), names(dfcp_mi))
+
+```
+
+CellSize has been removed.
+
+```{r}
+#remove CellSize from other datasets also
+
+dfcp_cca <- dfcp_cca %>% select(-CellSize)
+dfcp_mi_d2 <- dfcp_mi_d2 %>% select(-CellSize)
+dfcp_mi_d3 <- dfcp_mi_d3 %>% select(-CellSize)
+dfcp_mi_d4 <- dfcp_mi_d4 %>% select(-CellSize)
+dfcp_mi_d5 <- dfcp_mi_d5 %>% select(-CellSize)
+```
+
+## Optional step: Transform data
+Scaling data allows models to compare relative relationships between data points more effectively. The Breast Cancer Wisconsin (Original) Data Set is already scaled (1 -10).
+
+
+# Step 9: Build and Test Models
+This notebook uses a Support Vector Machine (SVM) Model. Other models are available.
+
+## Create Training and Test Sets
+Seeds set for reproducibility.
+
+```{r}
+#mi data
+set.seed(123)
+index <- sample(2, nrow(dfcp_mi),
+              replace = TRUE,
+              prob = c(0.7, 0.3))
+train_mi <- dfcp_mi[index==1,]
+test_mi <- dfcp_mi[index==2,] 
+
+#cca data
+set.seed(123)
+index1 <- sample(2, nrow(dfcp_cca),
+                 replace = TRUE,
+                 prob = c(0.7, 0.3))
+train_cca <- dfcp_cca[index1==1,] 
+test_cca <- dfcp_cca[index1==2,] 
+
+
+#delta2 data
+set.seed(123)
+index2 <- sample(2, nrow(dfcp_mi_d2),
+                 replace = TRUE,
+                 prob = c(0.7, 0.3))
+train_d2 <- dfcp_mi_d2[index2==1,] 
+test_d2 <- dfcp_mi_d2[index2==2,] 
+
+#delta3 data
+set.seed(123)
+index3 <- sample(2, nrow(dfcp_mi_d3),
+                 replace = TRUE,
+                 prob = c(0.7, 0.3))
+train_d3 <- dfcp_mi_d3[index3==1,] 
+test_d3 <- dfcp_mi_d3[index3==2,] 
+
+#delta4 data
+set.seed(123)
+index4 <- sample(2, nrow(dfcp_mi_d4),
+                 replace = TRUE,
+                 prob = c(0.7, 0.3))
+train_d4 <- dfcp_mi_d4[index4==1,] 
+test_d4 <- dfcp_mi_d4[index4==2,] 
+
+#delta5 data
+set.seed(123)
+index5 <- sample(2, nrow(dfcp_mi_d5),
+                 replace = TRUE,
+                 prob = c(0.7, 0.3))
+train_d5 <- dfcp_mi_d5[index5==1,] 
+test_d5 <- dfcp_mi_d5[index5==2,] 
+```
+
+
+## Test SVM Kernel Approaches with Training Data
+This code is based on the vignette from (Sallan, 2020) [Comparing SVM kernels](https://rpubs.com/jmsallan/SVMkernels). 
+
+```{r}
+library(e1071) #using SVM model from e1071 package
+library(knitr) #to produce kable to visualise results
+
+accuracy <- sapply(list(train_mi, train_cca, train_d2,
+                        train_d3, train_d4, train_d5), 
+                   
+                   function(df){
+                     
+                     svm_models <- lapply(list("linear", "poly", "radial", "sigmoid"), function(meth){
+                       return(svm(df[,-9], as.factor(df$Diagnosis), kernel=meth))
+                     })
+                     
+                     names(svm_models) <- c("linear", "poly", "radial", "sigmoid")
+                     
+                     accuracy <- sapply(svm_models, function(x) sum(x$fitted == df$Diagnosis)/nrow(df))
+                     names(accuracy) <- names(svm_models)
+                     return(accuracy)
+                     
+                   })
+
+accuracy <- data.frame(accuracy)
+colnames(accuracy) <- c('train_mi', 'train_cca', 'train_d2',
+                        'train_d3', 'train_d4', 'train_d5')
+
+accuracy %>%
+  kable(digits = 3)
+```
+
+According to this test against training data, SVM Radial produces the best result.
+
+## Predict Against Test Data
+Start with baseline model using multiple imputation.
+
+```{r}
+#Create x and y values
+#dfcp_mi data
+x <- train_mi[,-9]
+y <- as.factor(train_mi$Diagnosis)
+set.seed(345) #for reproducibility
+
+#Fit model with training data and review details
+model_svm <- svm(x, y, kernel='radial')
+print(model_svm)
+summary(model_svm)
+
+#test with test data
+xt <- test_mi[,-9]
+yt <-as.factor(test_mi$Diagnosis)
+pred_yt <- predict(model_svm, xt)
+
+#check accuracy
+table(pred_yt, yt)
+confusionMatrix(pred_yt, yt, mode="everything")
+```
+
+The Kappa result shows this is an excellent model with high accuracy and balanced accuracy. The CCA test will be considered next.
+
+```{r}
+#Create x and y values
+#dfcp_cca data
+x1 <- train_cca[,-9]
+y1 <- as.factor(train_cca$Diagnosis)
+set.seed(345) #for reproducibility
+
+#Fit model with training data and review details
+model_svm1 <- svm(x1, y1, kernel='radial')
+print(model_svm1)
+summary(model_svm1)
+
+#test with test data
+x1t <- test_cca[,-9]
+y1t <-as.factor(test_cca$Diagnosis)
+pred_y1t <- predict(model_svm1, x1t)
+
+#check accuracy
+table(pred_y1t, y1t)
+confusionMatrix(pred_y1t, y1t, mode="everything")
+```
+### Which Model Produced the Best Results?
+The following code block captures the model which produced the best results, based on Kappa and core metric (Sensitivity) as this is a minority classification problem.
+```{r}
+# set model variable for best performance as MI or CCA
+better_model = 'MI'
+```
+
+
+Complete case analysis produced an excellent model also, with a lower Kappa rate and metrics than the baseline MI model. Accuracy, balanced accuracy and the F1 score are all slightly lower. Although the MCAR test result indicated that data is MCAR, the missing data pattern in one variable only suggested MAR or MNAR. The better performance of the MI model over CCA, despite a low missingness rate, suggests that MAR or MNAR is more likely or that valuable information is included in the deleted data. To test MNAR further, the SVM model will be tested against the highest delta adjusted imputation to see if there is a big impact on results. If CCA produces a better result, this may be due to data bias.
+
+### Does Highest Delta Adjustment Have Big Impact on Results?
+
+```{r}
+#Create x and y values
+#dfcp_cca data
+x5 <- train_d5[,-9]
+y5 <- as.factor(train_d5$Diagnosis)
+set.seed(345) #for reproducibility
+
+#Fit model with training data and review details
+model_svm5 <- svm(x5, y5, kernel='radial')
+print(model_svm5)
+summary(model_svm5)
+
+#test with test data
+x5t <- test_d5[,-9]
+y5t <-as.factor(test_d5$Diagnosis)
+pred_y5t <- predict(model_svm5, x5t)
+
+#check accuracy
+table(pred_y5t, y5t)
+confusionMatrix(pred_y5t, y5t, mode="everything")
+```
+
+There is not a big impact in this example, suggesting results are relatively stable, that multiple imputation produces the best results and that a pattern mixture model is not necessary. The impact result is captured as a Yes or No response in the code below.
+```{r}
+#Is there a big impact on result?
+delta_impact = 'No'
+```
+
+
+# Optional Step: Misclassified Analysis
+Look at which rows were misclassified by the MI and CCA models.
+
+```{r}
+test_cca <-as.data.frame(test_cca)
+misclass_mi <- which(pred_yt != test_mi[,9])
+misclass_cca <- which(pred_y1t != test_cca[,9])
+```
+
+Print misclassified row from MI and CCA Model results.
+
+```{r}
+print(misclass_mi)
+print(misclass_cca)
+```
+
+Create objects with misclassified rows and print results.
+
+```{r}
+#the model misclassified the following rows
+#subset data
+misclass_rows_mi <- test_mi[c(1,2,61,70,99,197),]
+misclass_rows_cca <- test_cca[c(1,2,15,43,58,67,79,96,135),]
+
+print(misclass_rows_mi)
+print(misclass_rows_cca)
+```
+
+Whilst 5 of the 6 misclassified results from the multiple imputation model also appear in the model using CCA, there is still room for improvement. However, several of the misclassified results have data that are more representative of the other diagnosis - such as higher measures for CellShape and BareNuclei.
+
+## Final Visualisation of Results
+
+```{r}
+library(ROCR) # for ROC curve
+#calculations for ROC curve
+predictions <- as.numeric(predict(model_svm, test_mi[,-9], type="response"))
+pred <- prediction(predictions, test_mi$Diagnosis)
+perf <-performance(pred, measure="tpr", x.measure="fpr")
+plot(perf, col="dodgerblue1", main="ROC Curve Shows Good Separation of Data")
+```
+# Summary and Recommendations
+The following code will print a summary, based on the variable information recorded in earlier code blocks. 
+
+### Variable Parameters Set In Experiment
+```{r}
+print(paste(missingness, "is missing data level."))
+print(paste("Is data more more likely to be missing in some variables than others?", likelihood))
+print(paste("Is data missing from dependent variable(s) only?", dependent_only))
+print(paste("Does higher delta adjustment have big impact on results?", delta_impact))
+```
+
+
+### Is Data MCAR or MAR/MNAR?
+```{r}
+
+if (likelihood=="No" & mcar_presult=="error") {
+   hypothesis="Missing data pattern provides some support for MCAR hypothesis. However, no result available for MCAR Test."
+   } else if (likelihood=="No" & mcar_presult<0.05) {
+   hypothesis="Hypothesis unproven. MCAR Test and missing data pattern indicate different missing data mechanisms."
+   } else if (likelihood=="No" & mcar_presult>=0.05) {
+     hypothesis="MCAR hypothesis supported by MCAR Test and missing data pattern."
+   } else if(likelihood=="Yes" & mcar_presult=="error") {
+     hypothesis="Missing data pattern provides some support for MAR/MNAR hypothesis. However, no result available for MCAR Test."
+   } else if (likelihood=="Yes" & mcar_presult<0.05) {
+     hypothesis="MAR/MNAR hypothesis supported by MCAR Test and missing data pattern."
+   }else if (likelihood=="Yes" & mcar_presult>=0.05) {
+     hypothesis="Hypothesis unproven. MCAR Test and missing data pattern indicate different missing data mechanisms."
+   }else {
+   print("No hypothesis found.")
+}
+
+print(hypothesis)
+```
+
+### Recommended Approach for Missing Data
+```{r}
+#define different recommended approaches
+data_approach1 = "Due to overall level of missing data (or level of missing data from dependent variable only) there is a risk that a poor model will be returned, regardless of method used, that would not generalise well on new data."
+
+data_approach2 = "As MCAR hypothesis is supported and missing data is less than 20%, complete case analysis is likely to produce unbiased results. However, multiple imputation may produce a more effective model in some circumstances."
+
+data_approach3 = "MCAR hypothesis is supported. However, as missing data is between 20-50%, multiple imputation is likely to produce a more effective model."
+
+data_approach4 = "MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 20% and missing from the dependent variable only, complete case analysis may be the more reliable approach."
+
+data_approach5 = "MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. Also, as missing data is less than 50% and the delta sensitivity analysis suggests the results are relatively stable, multiple imputation is the recommended approach."
+
+data_approach6 = "MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. The delta sensitivity analysis suggests the results are not stable and indicative of MNAR data. Therefore, a pattern mixture model is recommended for further consideration. There are a couple of R mice package functions worth exploring further for this: mice.impute.ri and mice.impute.mnar.logreg. (van Buuren et al., 2023)"
+
+#define conditional statements
+if (missingness>=0.5) {
+   approach=data_approach1
+   } else if (missingness>0.2 & dependent_only=='Yes') {
+     approach=data_approach1
+   } else if (hypothesis=="MCAR hypothesis supported by MCAR Test and missing data pattern." & missingness<=0.2) {
+       approach=data_approach2 
+   } else if (hypothesis=="MCAR hypothesis supported by MCAR Test and missing data pattern." & missingness>0.2 & missingness<0.5) {
+     approach=data_approach3 
+   } else if(hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern." & missingness<=0.2 & dependent_only=="Yes") {
+     approach=data_approach4
+   } else if(hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern." & missingness<=0.5 & delta_impact=="No") {
+     approach=data_approach5
+   } else if(hypothesis!="MCAR hypothesis supported by MCAR Test and missing data pattern."  & delta_impact=="Yes") {
+     approach=data_approach6
+   }else {
+   print("No approach found.")
+}
+
+print(approach)
+
+```
+
+### Consideration of Test Model Results in Data Experiment
+```{r}
+
+if (better_model=="MI" & approach==data_approach1) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, there is a risk that it would not generalise well on new data.")
+   } else if (better_model=="CCA" & approach==data_approach1) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, there is a risk that it would not generalise well on new data.")
+   } else if (better_model=="MI" & approach==data_approach2) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, complete case analysis would be likely to produce unbiased results also.")
+   } else if (better_model=="CCA" & approach==data_approach2) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, multiple imputation may produce a more effective model in some circumstances.")
+   } else if (better_model=="MI" & approach==data_approach3) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This result is expected, given variables provided.")
+   } else if (better_model=="CCA" & approach==data_approach3) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, caution should be noted over results due to high level of missingness.")
+   } else if (better_model=="MI" & approach==data_approach4) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, caution should be taken with how missing data in dependent variables is handled, as CCA may be more reliable.")
+   } else if (better_model=="CCA" & approach==data_approach4) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. This should be a reliable approach for this missing data problem.")
+   } else if (better_model=="MI" & approach==data_approach5) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This should be a reliable approach for this missing data problem.")
+   } else if (better_model=="CCA" & approach==data_approach5) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, the MCAR hypothesis is either not supported or unclear so caution is advised on the results produced.")
+   } else if (better_model=="MI" & approach==data_approach6) {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, it is recommended that a pattern mixture model is considered also.")
+   } else if (better_model=="CCA" & approach==data_approach6) {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, it is recommended that a pattern mixture model is considered also.")
+   } else {
+   print("No model evaluation found.")
+}
+```
+
+
+
+
+# References
+-  van Buuren, S. et al. (2023) ‘mice: Multivariate Imputation by Chained Equations’. CRAN. Available at: https://CRAN.R-project.org/package=mice (Accessed: 10 August 2023).
+- Sallan, J.M. (2020) Comparing SVM kernels, rpubs.com. Available at: https://rpubs.com/jmsallan/SVMkernels (Accessed: 6 August 2023).
+- Vink, G. and van Buuren, S. (no date) mice: An approach to sensitivity analysis, www.gerkovink.com. Available at: https://www.gerkovink.com/miceVignettes/Sensitivity_analysis/Sensitivity_analysis.html (Accessed: 5 August 2023).
+- Wolberg, Wi. (1992) Breast Cancer Wisconsin (Original), UCI Machine Learning Repository. Available at: https://doi.org/10.24432/C5HP4Z.
+
+--Last updated: August 2023 --  
+
+--End--
