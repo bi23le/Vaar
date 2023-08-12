@@ -16,12 +16,12 @@ Vaar is an Orcadian sailing term meaning to guide or direct (Orkney is well know
 
 
 ## Description:
-There are two Markdown templates, produced for an MSc project, one in Python and one in R that will return:
+There are two R Markdown templates, produced for an MSc project, one in Python and one in R that will return:
 - Whether data is MCAR or MAR/MNAR
 - A recommended missing data approach which also accounts for indicative model result stability
 - An evaluation of imputation efforts against a test model
 
-Coding experience of R or Python is necessary, as due to the variability of data it is expected that additional code blocks will need to be included. 
+Coding experience of R or Python is necessary, as due to the variability of data it is expected that additional code blocks will need to be included. RStudio was used to create the templates and there are R Markdown extensions available in Visual Studio Code also.
 
 ### View Python Exemplar Web Pages
 - [Breast Cancer Wisconsin Original] (https://rpubs.com/bi23le/1070978)
