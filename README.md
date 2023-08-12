@@ -23,6 +23,13 @@ There are two Markdown templates, produced for an MSc project, one in Python and
 
 Coding experience of R or Python is necessary, as due to the variability of data it is expected that additional code blocks will need to be included. 
 
+### View Python Exemplar Web Pages
+- [Breast Cancer Wisconsin Original] (https://rpubs.com/bi23le/1070978)
+
+### View R Exemplar Web Pages
+- [Breast Cancer Wisconsin Original] (https://rpubs.com/bi23le/1070975)
+- [Cervical Cancer Risk Factors] (https://rpubs.com/bi23le/1070977)
+
 Code blocks can be copied and pasted from the markdown templates and exemplars. To use the full notebooks, the following packages are required:
 
 ### Python Libraries Required:
