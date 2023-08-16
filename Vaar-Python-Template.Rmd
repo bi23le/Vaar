@@ -13,7 +13,7 @@ This Vaar Template [R Markdown](http://rmarkdown.rstudio.com) Notebook using Pyt
 
 Work through the steps outlined with your own data, setting key variable values as you work through the notebook, and adding further code blocks if required. Comment out any code not required for your data - such as renaming variables. Or copy and paste code into your own environment.
 
-An R version exists also, and it is recommended that this is used over the Python version where possible, as the naniar and mice packages in R are very effective.
+An R version exists also, and it is recommended that this is used over the Python version where possible.
 
 # Step 1: Read in data and show data summary  
 
@@ -46,6 +46,7 @@ diagnosis.count()
 
 
 # Step 2: Tidy Data
+Rename variables to something more meaningful, noting that integer column names below are placeholder examples only.
 ```{python}
 #rename variables to something more meaningful in copy of original df
 dfcp = df
@@ -104,13 +105,13 @@ plt.show()
 Run MCAR Test.
 ```{r}
 py_install("scipy")
+py_install("sklearn")
 ```
-```{r}
-py_install("r-naniar")
+
 ```
 The following code, including Little's MCAR Test, has been performed in R, as no equivalent exists in Python yet (August 2023).
 **There will be a warning with MCAR test if non-numeric columns are present. If p-value >0.05 likely to be MCAR as not statistically significant.**  
-The MCAR Test may error if data is singular, there is no fix available for this yet (August 2023).
+
 ```{R}
 library(naniar)
 mcar_test(py$dfcp)
@@ -118,11 +119,11 @@ mcar_test(py$dfcp)
 # Step 4: Look at Outputs from Visualising the Missing Data and Answer the Following Questions
 
 #### What is the p.value returned by the MCAR Test?
-If the statistic is high and the p.value <0.05 it is likely to be MNAR or MAR and cannot be ignored. A p-value >0.05 indicates MCAR but other information will be considered also. The value is set as a variable in the following code.
+If the statistic is high and the p.value <0.05 it is likely to be MNAR or MAR and cannot be ignored. A p-value >0.05 indicates MCAR but other information will be considered also. The value is set as a variable in the following code. Set the variable value below.The MCAR Test may error if data is singular, there is no fix available for this yet (August 2023). 
 
 ```{python}
 #set MCAR Test p.value as variable
-mcar_presult = 
+mcar_presult = "user to change"
 
 if mcar_presult=="error" or  isinstance(mcar_presult, (int, float, complex)):
   print(f"{mcar_presult} is MCAR Test p.value variable value.")
@@ -186,7 +187,7 @@ plt.show()
 
 ```
 
-Use Seaborn's PairGrid to visualise interactions between variables.
+Use Seaborn's PairGrid to visualise interactions between variables. Change the hue to the target variable, there is placeholder copy here.
 
 ```{python}
 #use seaborn's PairGrid to visualise interactions between variables.
@@ -231,11 +232,11 @@ py$dfcp %>%
 ```
 
 #### Which numerical variable with missing data is nearest the top of the tree?
-Set variable value for missingness influencer in code below.
+Set variable value for missingness influencer in code below. This is to make a note of the variable that will be used in the delta adjustment. If there is only one variable with missing data, this would be the only option.
 
 ```{python}
 #set value for missingness influencer
-miss_influencer="V5"
+miss_influencer="user set value"
 ```
 
 # Step 6: Create Complete Case and Iterative Imputation Datasets
@@ -261,6 +262,8 @@ print(dfcp_mi.isna().sum())
 ```
 Add column names to imputed dataframe.
 
+Rename column variables as per earlier stage. The code below is a placeholder only.
+
 ```{python}
 dfcp_imp = dfcp_mi
 cols = dfcp_imp.columns
@@ -270,9 +273,11 @@ dfcp_imp.rename(columns = {cols[0]:'V1',cols[1]:'V2', cols[2]:'V3',cols[3]:'V4',
 # Step 7: Conduct MNAR Sensitivity Test
 
 Use the variable with missing data which has the most influence on proportion of missingness, according to step 5 and look at the range of values in this variable. Generate imputations under delta adjustment to imitate deviations from MAR (Gink and Van Buuren, no date). The code uses 0 and a reasonable range based on the variable range as the delta values.
+
+Update the column name.
 ```{python}
 #Pull out index of NaN from original data
-df[df['BareNuclei'].isna()]
+df[df['user set column name'].isna()]
 ```
 ```{python}
 #subset these rows and variable identified from imputed data set
@@ -280,31 +285,34 @@ delta0 = dfcp_mi.iloc[[23,40,139,145,158,164,235,249,275,292,294,297,315,321,411
 ```
 
 
-
+Change the column name in the code below.
+Set the upper clip at an appropriate level for data.
 ```{python}
 #set delta values then set upper clip
 #create new values by delta increase
 delta=[0,1,2,3,4]
 delta1 = delta0.copy()
-delta1.loc[delta1['V4']<10, 'V4']+=1
+delta1.loc[delta1['user set column name']<10, 'user set column name']+=1
 
 ```
 
 Repeat for other delta values
+Set the upper clip at an appropriate level for data.
 ```{python}
 delta2 = delta1.copy()
-delta2.loc[delta2['V4']<10, 'V4']+=1
+delta2.loc[delta2['user set column name']<10, 'user set column name']+=1
 delta2.clip(upper=10)
 
 delta3 = delta2.copy()
-delta3.loc[delta3['V4']<10, 'V4']+=1
+delta3.loc[delta3['user set column name']<10, 'user set column name']+=1
 delta3 = delta3.clip(upper=10)
 
 delta4 = delta3.copy()
-delta4.loc[delta4['V4']<10, 'V4']+=1
+delta4.loc[delta4['user set column name']<10, 'user set column name']+=1
 delta4 = delta4.clip(upper=10)
 ```
 Replace NaN with increased values to test sensitivity. Example below to change based on outputs created above.
+iloc references row and column index. 
 
 ```{python}
 dfcp_mi_d1 = dfcp.copy()
@@ -326,6 +334,9 @@ dfcp_mi_d1.iloc[[411],[5]] = 2.186619
 dfcp_mi_d1.iloc[[617],[5]] = 2.028221
 ```
  Repeat for other delta values.
+ Example below to change based on outputs created above.
+iloc references row and column index. 
+ 
 ```{python}
 dfcp_mi_d2 = dfcp_mi_d1.copy()
 dfcp_mi_d2.iloc[[23],[5]] = 9.116345
@@ -346,6 +357,9 @@ dfcp_mi_d2.iloc[[411],[5]] = 3.186619
 dfcp_mi_d2.iloc[[617],[5]] = 3.028221
 ```
  
+ Example below to change based on outputs created above.
+iloc references row and column index. 
+
 ```{python}
 dfcp_mi_d3 = dfcp_mi_d2.copy()
 dfcp_mi_d3.iloc[[23],[5]] = 10
@@ -365,6 +379,9 @@ dfcp_mi_d3.iloc[[321],[5]] = 4.423504
 dfcp_mi_d3.iloc[[411],[5]] = 4.186619
 dfcp_mi_d3.iloc[[617],[5]] = 4.028221
 ```
+
+Example below to change based on outputs created above.
+iloc references row and column index. 
 
 ```{python}
 dfcp_mi_d4 = dfcp_mi_d3.copy()
