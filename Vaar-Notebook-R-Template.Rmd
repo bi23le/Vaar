@@ -136,7 +136,7 @@ if(dependent_only=="Yes" || dependent_only=="No") {print(paste(dependent_only, "
 
 
 #### What percentage of data is missing?
-If it's between 0.1-0.5 multiple imputation is likely to result in a more effective, unbiased model. The value is set as a variable in the following code in the format 0.000. This is taken from the missing data visualisation.
+If it's between 0.1-0.5 multiple imputation is likely to result in a more effective, unbiased model. The value is set as a float variable where 100% would be 1.0 and 1.5% 0.015. This is taken from the missing data visualisation, where you can see the missingness for the entire dataset.
 
 ```{r}
 #set missingness variable value
@@ -195,7 +195,7 @@ dfcp %>%
   prp(type=4, extra = 101, roundint=FALSE, prefix="Prop.Miss = ")
 ```
 
-#### Which variable with missing data is nearest the top of the tree?
+#### Which numerical variable with missing data is nearest the top of the tree?
 Variable value for missingness influencer set in code below. There may only be one variable with missing data, in which case set this as the value.
 ```{r}
 #set value for missingness influencer
@@ -209,6 +209,7 @@ fxpt <- fluxplot(dfcp)
 ```
 
 #### Change Columns to Factors Where Necessary
+Change column names to ones in data.
 ```{r}
 dfcp <- as.data.frame(dfcp) 
 
@@ -217,6 +218,7 @@ dfcp <- dfcp  %>% mutate(across(c("var1", "var2"), as.factor))
 ```
 
 #### Change Columns to Integers Where Necessary
+Change column names to ones in data.
 ```{r}
 dfcp <- dfcp  %>% mutate(across(c("var3", "var4"), as.integer))
 ```
@@ -313,11 +315,13 @@ There can be valuable information in outliers and it is good practice to remove 
 # Step 8: Select Features
 This code is an example of how to determine which variables have above 0.9 correlation, as highly-correlated features do not generally improve models. Then, remove any variables identified from all datasets.
 
+Change column names as required.
+
 ```{r}
 library(caret)
 #remove class, factors or dependent variables as looking for co-correlation issues
 #0.9 and above
-dfcp_mi_cor = subset(dfcp_mi, select = -c(class,V5))
+dfcp_mi_cor = subset(dfcp_mi, select = -c(class))
                 
 dfcp_mi_cor_res <- cor(dfcp_mi_cor)
 dfcp_mi_cor_res <- as.data.frame(as.table(dfcp_mi_cor_res))
