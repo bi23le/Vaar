@@ -21,7 +21,7 @@ There are two R Markdown templates, produced for an MSc project, one in Python a
 - A recommended missing data approach which also accounts for indicative model result stability
 - An evaluation of imputation efforts against a test model
 
-Coding experience of R or Python is necessary, as due to the variability of data it is expected that additional code blocks will need to be included. RStudio was used to create the templates and there are R Markdown extensions available in Visual Studio Code also.
+Coding experience of R or Python is necessary, as due to the variability of data it is expected that additional code blocks will need to be included. RStudio was used to create the templates and there are R Markdown extensions available in Visual Studio Code also. However, the Python version uses both R and Python environments so R Studio may be required to use this version. 
 
 ### View Python Exemplar Web Pages
 - [Breast Cancer Wisconsin Original] (https://rpubs.com/bi23le/1070978)
@@ -29,6 +29,7 @@ Coding experience of R or Python is necessary, as due to the variability of data
 ### View R Exemplar Web Pages
 - [Breast Cancer Wisconsin Original] (https://rpubs.com/bi23le/1070975)
 - [Cervical Cancer Risk Factors] (https://rpubs.com/bi23le/1070977)
+- [Dermatology] (https://rpubs.com/bi23le/1072208)
 
 Code blocks can be copied and pasted from the markdown templates and exemplars. To use the full notebooks, the following packages are required:
 
