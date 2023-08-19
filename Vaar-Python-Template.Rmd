@@ -645,14 +645,23 @@ elif better_model=="MI" and approach=="As MCAR hypothesis is supported and missi
 elif better_model=="CCA" and approach=="As MCAR hypothesis is supported and missing data is less than 10%, complete case analysis is likely to produce unbiased results. However, multiple imputation may produce a more effective model in some circumstances.":
   print("For this particular data experiment, complete case analysis produced the most effective model. However, multiple imputation may produce a more effective model in some circumstances.")
 
-elif better_model=="MI" and approach=="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model.":
+elif better_model=="MI" and approach=="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model." and delta_impact=="Yes":
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, due to the sensitivity result a pattern mixture model should also be considered.")
+   
+elif better_model=="MI" and approach=="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model." and delta_impact=="No":
    print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This result is expected, given variables provided.")
    
-elif better_model=="CCA" and approach=="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model.":
+elif better_model=="CCA" and approach=="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model." and delta_impact=="No":
    print("For this particular data experiment, complete case analysis produced the most effective model. However, caution should be noted over results due to high level of missingness.")
    
-elif better_model=="MI" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 10% and missing from the dependent variable only, complete case analysis may be the more reliable approach.":
+elif better_model=="CCA" and approach=="MCAR hypothesis is supported. However, as missing data is between 10-50%, multiple imputation is likely to produce a more effective model." and delta_impact=="Yes":
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, caution should be noted over results due to high level of missingness. Also, due to the sensitivity result a pattern mixture model should also be considered.")
+   
+elif better_model=="MI" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 10% and missing from the dependent variable only, complete case analysis may be the more reliable approach." and delta_impact=="No":
    print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, caution should be taken with how missing data in dependent variables is handled, as CCA may be more reliable.")
+   
+elif better_model=="MI" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 10% and missing from the dependent variable only, complete case analysis may be the more reliable approach." and delta_impact=="Yes":
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, caution should be taken with how missing data in dependent variables is handled, and the sensitivity result suggests that a pattern mixture model should also be considered.")
    
 elif better_model=="CCA" and approach=="MAR/MNAR hypothesis supported, or MCAR hypothesis unproven. However, as missing data is less than 10% and missing from the dependent variable only, complete case analysis may be the more reliable approach.":
    print("For this particular data experiment, complete case analysis produced the most effective model. This should be a reliable approach for this missing data problem.")

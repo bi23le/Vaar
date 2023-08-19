@@ -572,26 +572,42 @@ if (better_model=="MI" & approach==data_approach1) {
    print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, there is a risk that it would not generalise well on new data.")
    } else if (better_model=="CCA" & approach==data_approach1) {
    print("For this particular data experiment, complete case analysis produced the most effective model. However, there is a risk that it would not generalise well on new data.")
+     
    } else if (better_model=="MI" & approach==data_approach2) {
    print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, complete case analysis would be likely to produce unbiased results also.")
    } else if (better_model=="CCA" & approach==data_approach2) {
    print("For this particular data experiment, complete case analysis produced the most effective model. However, multiple imputation may produce a more effective model in some circumstances.")
-   } else if (better_model=="MI" & approach==data_approach3) {
+     
+   } else if (better_model=="MI" & approach==data_approach3 & delta_impact=="No") {
    print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This result is expected, given variables provided.")
-   } else if (better_model=="CCA" & approach==data_approach3) {
+   } else if (better_model=="MI" & approach==data_approach3 & delta_impact=="Yes") {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, due to the sensitivity result a pattern mixture model should also be considered.")
+   } else if (better_model=="CCA" & approach==data_approach3 & delta_impact=="No") {
    print("For this particular data experiment, complete case analysis produced the most effective model. However, caution should be noted over results due to high level of missingness.")
-   } else if (better_model=="MI" & approach==data_approach4) {
+   } else if (better_model=="CCA" & approach==data_approach3 & delta_impact=="Yes") {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, caution should be noted over results due to high level of missingness and sensitivity result. A pattern mixture model should also be considered.")
+     
+   } else if (better_model=="MI" & approach==data_approach4 & delta_impact=="No") {
    print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, caution should be taken with how missing data in dependent variables is handled, as CCA may be more reliable.")
+   } else if (better_model=="MI" & approach==data_approach4 & delta_impact=="Yes") {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, caution should be taken with how missing data in dependent variables is handled, and the sensitivity result suggests that a pattern mixture model should also be considered.")
    } else if (better_model=="CCA" & approach==data_approach4) {
    print("For this particular data experiment, complete case analysis produced the most effective model. This should be a reliable approach for this missing data problem.")
-   } else if (better_model=="MI" & approach==data_approach5) {
+     
+   } else if (better_model=="MI" & approach==data_approach5 & delta_impact=="No") {
    print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. This should be a reliable approach for this missing data problem.")
-   } else if (better_model=="CCA" & approach==data_approach5) {
+   } else if (better_model=="MI" & approach==data_approach5 & delta_impact=="Yes") {
+   print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, it is recommended that a pattern mixture model is considered also due to the sensitivity result.")
+   } else if (better_model=="CCA" & approach==data_approach5 & delta_impact=="No") {
    print("For this particular data experiment, complete case analysis produced the most effective model. However, the MCAR hypothesis is either not supported or unclear so caution is advised on the results produced.")
+   } else if (better_model=="CCA" & approach==data_approach5 & delta_impact=="Yes") {
+   print("For this particular data experiment, complete case analysis produced the most effective model. However, the MCAR hypothesis is either not supported or unclear so caution is advised on the results produced. It is recommended that a pattern mixture model is considered also due to the sensitivity result.")
+     
    } else if (better_model=="MI" & approach==data_approach6) {
    print("For this particular data experiment, Multiple Imputation produced a more effective model than complete case analysis. However, it is recommended that a pattern mixture model is considered also.")
    } else if (better_model=="CCA" & approach==data_approach6) {
    print("For this particular data experiment, complete case analysis produced the most effective model. However, it is recommended that a pattern mixture model is considered also.")
+     
    } else {
    print("No model evaluation found.")
 }
